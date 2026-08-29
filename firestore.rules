@@ -3,15 +3,42 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     match /boards/{boardId} {
-      // TEMPORARY: allow any authenticated user to read/update for debugging
-      allow read, update: if request.auth != null;
-      allow create: if request.auth != null && request.auth.uid == request.resource.data.ownerId;
-      allow delete: if request.auth != null && request.auth.uid == resource.data.ownerId;
+
+      function isSignedIn() {
+        return request.auth != null;
+      }
+
+      function isOwner() {
+        return isSignedIn() && request.auth.uid == resource.data.get('ownerId', '');
+      }
+
+      function isCollaborator() {
+        return isSignedIn() && request.auth.token.email in resource.data.get('collaborators', []);
+      }
+      
+      allow read: if isOwner() || isCollaborator();
+
+      allow update: if (isOwner() || isCollaborator())
+                    && request.resource.data.ownerId == resource.data.ownerId;
+
+      allow create: if isSignedIn() && request.auth.uid == request.resource.data.ownerId;
+
+      allow delete: if isSignedIn() && request.auth.uid == resource.data.ownerId;
 
       match /presence/{userId} {
-        allow read: if request.auth != null;
-        allow create, update: if request.auth != null && request.auth.uid == userId;
-        allow delete: if request.auth != null && request.auth.uid == userId;
+
+        function canAccessBoard() {
+          return isSignedIn()
+                 && exists(/databases/$(database)/documents/boards/$(boardId))
+                 && (
+                   request.auth.uid == get(/databases/$(database)/documents/boards/$(boardId)).data.get('ownerId', '')
+                   || request.auth.token.email in get(/databases/$(database)/documents/boards/$(boardId)).data.get('collaborators', [])
+                 );
+        }
+
+        allow read: if canAccessBoard();
+        allow create, update: if canAccessBoard() && request.auth.uid == userId;
+        allow delete: if isSignedIn() && request.auth.uid == userId;
       }
     }
   }
