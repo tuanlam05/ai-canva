@@ -29,6 +29,8 @@ const nodeTypes = {
   devplan: BoxNode,
   ui: BoxNode,
   stitch: BoxNode,
+  safety: BoxNode,
+  coach: BoxNode,
 };
 
 export default function Canvas() {
