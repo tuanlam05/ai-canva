@@ -1,4 +1,15 @@
-export type BoxType = "idea" | "research" | "summarize" | "image" | "cartoon" | "slides" | "code" | "prd" | "devplan" | "ui" | "stitch";
+export type BoxType = 
+  | "idea"
+  | "research"
+  | "summarize"
+  | "image"
+  | "cartoon"
+  | "slides"
+  | "code"
+  | "prd"
+  | "devplan"
+  | "ui"
+  | "stitch";
 
 export type BoxStatus = "idle" | "running" | "done" | "error";
 
