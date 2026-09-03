@@ -65,6 +65,11 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const promptRef = useRef<HTMLTextAreaElement>(null);
 
+  if (!meta) {
+    console.error(`Unknown box type: ${boxType}`);
+    return null; // or render a fallback "unknown box" UI
+  }
+
   // Find connected upstream box names for the settings panel
   const connectedInputs = edges
     .filter((e) => e.target === id)
