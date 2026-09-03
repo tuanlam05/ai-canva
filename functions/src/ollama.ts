@@ -29,7 +29,7 @@ export async function generateContent(
 ): Promise<string> {
   const host = process.env.OLLAMA_HOST || "https://ollama.com";
   const apiKey = process.env.OLLAMA_API_KEY;
-  const model = process.env.OLLAMA_MODEL || "deepseek-v4-flash";
+  const model = process.env.OLLAMA_MODEL || "gpt-oss:120b-cloud";
 
   const headers: Record<string, string> = { "Content-Type": "application/json" };
   if (apiKey) {
