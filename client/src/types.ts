@@ -1,4 +1,17 @@
-export type BoxType = "idea" | "research" | "summarize" | "image" | "cartoon" | "slides" | "code" | "prd" | "devplan" | "ui" | "stitch";
+export type BoxType = 
+  | "idea"
+  | "research"
+  | "summarize"
+  | "image"
+  | "cartoon"
+  | "slides"
+  | "code"
+  | "prd"
+  | "devplan"
+  | "ui"
+  | "stitch"
+  | "safety"
+  | "coach";
 
 export type BoxStatus = "idle" | "running" | "done" | "error";
 
@@ -205,5 +218,33 @@ export const BOX_TYPES: Record<BoxType, BoxTypeMeta> = {
     defaultSystemPrompt: "",
     defaultWidth: 440,
     defaultHeight: 420,
+  },
+  safety: {
+    label: "Patient Safety Reviewer",
+    icon: "🩺",
+    color: "#ef4444",
+    description: "Review patient safety risks.",
+    hasAI: true,
+    category: "worker",
+    defaultPrompt:
+      "placeholder",
+    defaultSystemPrompt:
+      "placeholder",
+    defaultWidth: 360,
+    defaultHeight: 380,
+  },
+  coach: {
+    label: "UX Coach",
+    icon: "🎓",
+    color: "#84cc16",
+    description: "Generate a step-by-step procedure for a UX task.",
+    hasAI: true,
+    category: "worker",
+    defaultPrompt:
+      "placeholder",
+    defaultSystemPrompt:
+      "placeholder",
+    defaultWidth: 360,
+    defaultHeight: 380,
   },
 };
