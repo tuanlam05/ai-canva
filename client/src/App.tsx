@@ -34,7 +34,9 @@ export default function App() {
   const activeUsers = useBoardStore((s) => s.activeUsers);
   const unsubscribeFromBoard = useBoardStore((s) => s.unsubscribeFromBoard);
   const cleanupPresence = useBoardStore((s) => s.cleanupPresence);
-  const subscribeToBoardUpdates = useBoardStore((s) => s.subscribeToBoardUpdates);
+  const subscribeToBoardUpdates = useBoardStore(
+    (s) => s.subscribeToBoardUpdates,
+  );
 
   const [showBoardList, setShowBoardList] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -88,7 +90,7 @@ export default function App() {
       }
     };
     initBoard();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, authLoading]);
 
   // Auto-subscribe to board updates whenever currentBoardId changes.
@@ -106,18 +108,23 @@ export default function App() {
     seedingRef.current = true;
     const state = useBoardStore.getState();
     if (state.nodes.length > 0) return;
-    const ideaId = addBox("idea", { x: 80, y: 200 });
+    const ideaId = addBox("text", { x: 80, y: 200 });
     useBoardStore.getState().updateBoxData(ideaId, {
-      content: "An AI-powered meal planning app that creates weekly menus based on dietary preferences and grocery sales.",
+      content:
+        "An AI-powered meal planning app that creates weekly menus based on dietary preferences and grocery sales.",
     });
-    const researchId = addBox("research", { x: 480, y: 200 });
+    const researchId = addBox("insight", { x: 480, y: 200 });
     useBoardStore.getState().onConnect({
-      source: ideaId, target: researchId,
-      sourceHandle: null, targetHandle: null,
+      source: ideaId,
+      target: researchId,
+      sourceHandle: null,
+      targetHandle: null,
     } as any);
   }, [addBox, authLoading, user]);
 
-  const handleAddBox = (type: BoxType) => { addBox(type); };
+  const handleAddBox = (type: BoxType) => {
+    addBox(type);
+  };
 
   const handleClearBoard = () => {
     if (!confirm("Clear the entire board? This removes all boxes.")) return;
@@ -147,12 +154,27 @@ export default function App() {
   };
 
   const handleDeleteBoard = async () => {
-    if (!confirm("Delete this board from the cloud? Local cache will remain.")) return;
+    if (!confirm("Delete this board from the cloud? Local cache will remain."))
+      return;
     await deleteCurrentBoard();
   };
 
-  const saveLabel = saveStatus === "saving" ? "Saving..." : saveStatus === "saved" ? "Saved" : saveStatus === "error" ? "Save failed" : "Idle";
-  const saveColor = saveStatus === "saving" ? "text-blue-400" : saveStatus === "saved" ? "text-green-400" : saveStatus === "error" ? "text-red-400" : "text-slate-400";
+  const saveLabel =
+    saveStatus === "saving"
+      ? "Saving..."
+      : saveStatus === "saved"
+        ? "Saved"
+        : saveStatus === "error"
+          ? "Save failed"
+          : "Idle";
+  const saveColor =
+    saveStatus === "saving"
+      ? "text-blue-400"
+      : saveStatus === "saved"
+        ? "text-green-400"
+        : saveStatus === "error"
+          ? "text-red-400"
+          : "text-slate-400";
 
   // === Render ===
 
@@ -215,7 +237,10 @@ export default function App() {
                 onClick={() => setShowShareModal(true)}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 transition"
               >
-                {"👥 Share" + (activeUsers.length > 1 ? " (" + activeUsers.length + ")" : "")}
+                {"👥 Share" +
+                  (activeUsers.length > 1
+                    ? " (" + activeUsers.length + ")"
+                    : "")}
               </button>
             </div>
           )}
@@ -224,7 +249,12 @@ export default function App() {
         <div className="flex items-center gap-1.5">
           <button
             onClick={() => setSidebarOpen(!sidebarOpen)}
-            className={"flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition " + (sidebarOpen ? "bg-slate-200 text-slate-700" : "bg-slate-100 text-slate-500 hover:bg-slate-200")}
+            className={
+              "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition " +
+              (sidebarOpen
+                ? "bg-slate-200 text-slate-700"
+                : "bg-slate-100 text-slate-500 hover:bg-slate-200")
+            }
             title="Toggle add-box panel"
           >
             {"+ Add " + (sidebarOpen ? "✕" : "☰")}
@@ -256,19 +286,33 @@ export default function App() {
                     ➕ New Board
                   </button>
                   {boardList.length === 0 && (
-                    <div className="px-4 py-3 text-xs text-slate-400">No boards yet.</div>
+                    <div className="px-4 py-3 text-xs text-slate-400">
+                      No boards yet.
+                    </div>
                   )}
                   {boardList.map((b) => (
                     <div
                       key={b.id}
-                      className={"flex items-center justify-between px-4 py-2.5 text-sm hover:bg-slate-50 cursor-pointer border-b border-slate-50 " + (b.id === currentBoardId ? "bg-blue-50" : "")}
+                      className={
+                        "flex items-center justify-between px-4 py-2.5 text-sm hover:bg-slate-50 cursor-pointer border-b border-slate-50 " +
+                        (b.id === currentBoardId ? "bg-blue-50" : "")
+                      }
                       onClick={() => handleLoadBoard(b.id)}
                     >
                       <div className="flex-1 min-w-0">
-                        <div className="font-medium text-slate-700 truncate">{b.title}</div>
-                        <div className="text-xs text-slate-400">{new Date(b.updatedAt).toLocaleDateString() + " · " + (Array.isArray(b.nodes) ? b.nodes.length : 0) + " boxes"}</div>
+                        <div className="font-medium text-slate-700 truncate">
+                          {b.title}
+                        </div>
+                        <div className="text-xs text-slate-400">
+                          {new Date(b.updatedAt).toLocaleDateString() +
+                            " · " +
+                            (Array.isArray(b.nodes) ? b.nodes.length : 0) +
+                            " boxes"}
+                        </div>
                       </div>
-                      {b.id === currentBoardId && <span className="text-blue-500 text-xs">current</span>}
+                      {b.id === currentBoardId && (
+                        <span className="text-blue-500 text-xs">current</span>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -284,8 +328,14 @@ export default function App() {
               </button>
             )}
             <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100">
-              <img src={user.photoURL || ""} alt="" className="w-6 h-6 rounded-full" />
-              <span className="text-xs text-slate-600 max-w-[120px] truncate">{user.email}</span>
+              <img
+                src={user.photoURL || ""}
+                alt=""
+                className="w-6 h-6 rounded-full"
+              />
+              <span className="text-xs text-slate-600 max-w-[120px] truncate">
+                {user.email}
+              </span>
               <button
                 onClick={handleLogout}
                 className="text-xs text-slate-400 hover:text-red-500 ml-1"
@@ -301,7 +351,10 @@ export default function App() {
       <div className="flex-1 relative">
         <ReactFlowProvider>
           <Canvas />
-          <Sidebar open={sidebarOpen} onToggle={() => setSidebarOpen(!sidebarOpen)} />
+          <Sidebar
+            open={sidebarOpen}
+            onToggle={() => setSidebarOpen(!sidebarOpen)}
+          />
           <Toolbar />
         </ReactFlowProvider>
       </div>
