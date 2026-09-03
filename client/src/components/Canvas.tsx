@@ -18,17 +18,10 @@ import BoxNode from "./BoxNode.js";
 import Cursors from "./Cursors.js";
 
 const nodeTypes = {
-  idea: BoxNode,
-  research: BoxNode,
-  summarize: BoxNode,
-  image: BoxNode,
-  cartoon: BoxNode,
-  slides: BoxNode,
-  code: BoxNode,
-  prd: BoxNode,
-  devplan: BoxNode,
-  ui: BoxNode,
-  stitch: BoxNode,
+  text: BoxNode,
+  file: BoxNode,
+  insight: BoxNode,
+  journey: BoxNode,
   safety: BoxNode,
   coach: BoxNode,
 };
