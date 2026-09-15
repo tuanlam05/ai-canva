@@ -3,17 +3,12 @@ import type { BoxType } from "../../types.js";
 import Reveal from "./Reveal.js";
 
 const ORDER: BoxType[] = [
-  "idea",
-  "research",
-  "summarize",
-  "prd",
-  "devplan",
-  "code",
-  "ui",
-  "stitch",
-  "slides",
-  "image",
-  "cartoon",
+  "text",
+  "documents",
+  "insight",
+  "journey",
+  "safety",
+  "coach",
 ];
 
 export default function LandingBoxes() {

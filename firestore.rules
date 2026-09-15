@@ -91,12 +91,5 @@ service cloud.firestore {
     match /usageTotals/{uid} {
       allow read, write: if request.auth != null && request.auth.uid == uid;
     }
-
-    // Async Stitch UI jobs — accessed only server-side through the Admin SDK
-    // via POST /api/stitch-generate and GET /api/stitch-status/:id. Clients
-    // must never read/write these docs directly.
-    match /stitchJobs/{jobId} {
-      allow read, write: if false;
-    }
   }
 }

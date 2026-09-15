@@ -186,11 +186,11 @@ export default function App() {
     seedingRef.current = true;
     const state = useBoardStore.getState();
     if (state.nodes.length > 0) return;
-    const ideaId = addBox("idea", { x: 80, y: 200 });
+    const ideaId = addBox("text", { x: 80, y: 200 });
     useBoardStore.getState().updateBoxData(ideaId, {
       content: "An AI-powered meal planning app that creates weekly menus based on dietary preferences and grocery sales.",
     });
-    const researchId = addBox("research", { x: 480, y: 200 });
+    const researchId = addBox("insight", { x: 480, y: 200 });
     useBoardStore.getState().onConnect({
       source: ideaId, target: researchId,
       sourceHandle: null, targetHandle: null,

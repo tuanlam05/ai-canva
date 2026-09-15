@@ -12,9 +12,6 @@ interface SidebarProps {
 
 const SECTIONS: { title: string; category: BoxCategory }[] = [
   { title: "Inputs", category: "input" },
-  // The gated SDLC pipeline (stages 1-6, in order). Kept next to Inputs because
-  // an Idea box is the usual seed for stage 1.
-  { title: "SDLC", category: "sdlc" },
   { title: "Workers", category: "worker" },
   { title: "Companions", category: "companion" },
   { title: "Collaboration", category: "collab" },
