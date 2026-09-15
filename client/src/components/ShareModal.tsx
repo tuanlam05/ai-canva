@@ -1,11 +1,19 @@
 import { useState, useEffect, useRef } from "react";
 import { useBoardStore } from "../store/boardStore.js";
 import { useAuthStore } from "../store/authStore.js";
-import { copyToClipboard } from "../lib/code.js";
 
 interface ShareModalProps {
   open: boolean;
   onClose: () => void;
+}
+
+async function copyToClipboard(text: string): Promise<boolean> {
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export default function ShareModal({ open, onClose }: ShareModalProps) {

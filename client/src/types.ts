@@ -1,18 +1,63 @@
 export type BoxType =
   | "text"
-  | "file"
+  | "documents"
   | "insight"
   | "journey"
   | "safety"
-  | "coach";
+  | "coach"
+  | "custom"
+  | "checklist"
+  | "label"
+  | "note";
+
+/**
+ * One task in a Checklist box — the team's shared to-do list. Every field is
+ * always defined (no `undefined`) because these objects live inside a BoxData
+ * array and Firestore rejects `undefined` anywhere in a nested value.
+ *
+ * Attribution is deliberately stored per item: a checklist is edited by the
+ * whole team (last-write-wins between simultaneous users, like notes), so
+ * "who added it" and "who ticked it off" are part of the record.
+ */
+export interface ChecklistItem {
+  id: string;
+  text: string;
+  done: boolean;
+  /** Email of the teammate who owns the task ("" = unassigned). */
+  assignee: string;
+  /** Who added the task (email) and when (epoch ms). */
+  createdBy: string;
+  createdAt: number;
+  /** Who ticked it off and when ("" / 0 while the task is still open). */
+  doneBy: string;
+  doneAt: number;
+}
 
 export type BoxStatus = "idle" | "running" | "done" | "error";
 
-/** A single slide in a generated deck. */
-export interface Slide {
-  title: string;
-  bullets: string[];
-  notes?: string;
+/**
+ * A document attached to a Documents box. All fields are always defined (no
+ * `undefined`) so the object survives Firestore writes, which reject
+ * `undefined` anywhere in a nested value.
+ */
+export interface BoxDocument {
+  id: string;
+  /** Original filename (kept for labeling in prompts and the file list). */
+  name: string;
+  /** Raw file size in bytes. */
+  size: number;
+  /** Lowercase extension without the dot ("pdf", "txt", …). */
+  ext: string;
+  /** Storage download URL — "" when the file was not uploaded (local mode). */
+  url: string;
+  /** Extracted text — "" when extraction failed (see error). */
+  text: string;
+  /** Characters of extracted text actually kept (after any truncation). */
+  chars: number;
+  /** True when the extracted text was capped (see lib/documents.ts limits). */
+  truncated: boolean;
+  /** "" when extraction succeeded, otherwise a short failure reason. */
+  error: string;
 }
 
 /** A user currently active on a board with their cursor position. */
@@ -24,6 +69,9 @@ export interface PresenceUser {
   color: string;
   cursorX: number;
   cursorY: number;
+  /** False when the user is online (heartbeat) but has never moved their
+   *  cursor — Cursors skips those so no stray cursor renders at (0, 0). */
+  hasCursor?: boolean;
 }
 
 /** A connected upstream input with its box name and output. */
@@ -42,13 +90,45 @@ export interface BoxData {
   error?: string;
   imageData?: string;
   outputImage?: string;
-  slides?: Slide[];
-  /** For Code boxes: the generated React component code (JSX). */
-  code?: string;
+  /** For Documents boxes: the uploaded files + their extracted text. */
+  documents?: BoxDocument[];
+  /** Token usage from the most recent LLM call for this box (text AI boxes). */
+  tokens?: {
+    promptTokens: number;
+    completionTokens: number;
+    totalTokens: number;
+  };
+  /** For Note boxes: who created the note (set once at creation). */
+  authorEmail?: string;
+  authorName?: string;
+  /** For Label boxes: the pill's background color (one of LABEL_COLORS). */
+  labelColor?: string;
+  /**
+   * For Checklist boxes: the shared team to-do items (see
+   * `client/src/lib/checklist.ts` for every mutation and the paste parser).
+   */
+  checklistItems?: ChecklistItem[];
 }
 
 /** Metadata for each box type. */
-export type BoxCategory = "input" | "worker" | "custom";
+export type BoxCategory =
+  | "input"
+  | "worker"
+  | "collab"
+  | "companion"
+  | "custom"
+  | "sdlc";
+
+/**
+ * A role/persona a box is aimed at. Boxes tagged `"everyone"` appear in every
+ * role view (they are shared pipeline scaffolding). See `docs/BOX_TYPES.md`.
+ */
+export type BoxRole =
+  | "everyone"
+  | "designer"
+  | "developer"
+  | "product"
+  | "sdlc";
 
 export interface BoxTypeMeta {
   label: string;
@@ -57,6 +137,8 @@ export interface BoxTypeMeta {
   description: string;
   hasAI: boolean;
   category: BoxCategory;
+  /** Role tags used to filter the palette per persona (labels, not permissions). */
+  roles: BoxRole[];
   defaultPrompt: string;
   defaultSystemPrompt: string;
   defaultWidth: number;
@@ -72,23 +154,11 @@ export const BOX_TYPES: Record<BoxType, BoxTypeMeta> = {
       "Write down simple context for your research project, in text form.",
     hasAI: false,
     category: "input",
+    roles: ["everyone"],
     defaultPrompt: "",
     defaultSystemPrompt: "",
     defaultWidth: 320,
     defaultHeight: 200,
-  },
-  file: {
-    label: "File Context",
-    icon: "🖼️",
-    color: "#34d399",
-    description:
-      "Upload a file to use as context for your research project. .txt and .pdf accepted.",
-    hasAI: false,
-    category: "input",
-    defaultPrompt: "",
-    defaultSystemPrompt: "",
-    defaultWidth: 320,
-    defaultHeight: 320,
   },
   insight: {
     label: "Insight Weaver",
@@ -98,6 +168,7 @@ export const BOX_TYPES: Record<BoxType, BoxTypeMeta> = {
       "Extracts themes and pain points from research transcripts, with verified quotes and sources.",
     hasAI: true,
     category: "worker",
+    roles: ["everyone"],
     defaultPrompt: "Placeholder",
     defaultSystemPrompt: "Placeholder",
     defaultWidth: 320,
@@ -111,6 +182,7 @@ export const BOX_TYPES: Record<BoxType, BoxTypeMeta> = {
       "Organizes themes into a journey with stages, emotions, and friction points, tracing back to source themes.",
     hasAI: true,
     category: "worker",
+    roles: ["everyone"],
     defaultPrompt: "Placeholder",
     defaultSystemPrompt: "Placeholder",
     defaultWidth: 320,
@@ -123,6 +195,7 @@ export const BOX_TYPES: Record<BoxType, BoxTypeMeta> = {
     description: "Review patient safety risks.",
     hasAI: true,
     category: "worker",
+    roles: ["everyone"],
     defaultPrompt: "placeholder",
     defaultSystemPrompt: "placeholder",
     defaultWidth: 360,
@@ -135,9 +208,104 @@ export const BOX_TYPES: Record<BoxType, BoxTypeMeta> = {
     description: "Generate a step-by-step procedure for a UX task.",
     hasAI: true,
     category: "worker",
+    roles: ["everyone"],
     defaultPrompt: "placeholder",
     defaultSystemPrompt: "placeholder",
     defaultWidth: 360,
     defaultHeight: 380,
   },
+  documents: {
+    label: "Documents",
+    icon: "📎",
+    color: "#64748b",
+    description:
+      "Upload PDF, Word, or text files. Their extracted text becomes input for downstream boxes via {{inputs}}.",
+    hasAI: false,
+    category: "input",
+    roles: ["everyone"],
+    defaultPrompt: "",
+    defaultSystemPrompt: "",
+    defaultWidth: 340,
+    defaultHeight: 380,
+  },
+  note: {
+    label: "Note",
+    icon: "🗒️",
+    color: "#fbbf24",
+    description:
+      "A post-it style note for team communication. Everyone on the board sees it.",
+    hasAI: false,
+    category: "collab",
+    roles: ["everyone"],
+    defaultPrompt: "",
+    defaultSystemPrompt: "",
+    defaultWidth: 260,
+    defaultHeight: 240,
+  },
+  label: {
+    label: "Label",
+    icon: "🏷️",
+    color: "#64748b",
+    description: "A simple colored text label to annotate areas of the board.",
+    hasAI: false,
+    category: "collab",
+    roles: ["everyone"],
+    defaultPrompt: "",
+    defaultSystemPrompt: "",
+    defaultWidth: 200,
+    defaultHeight: 64,
+  },
+  checklist: {
+    label: "Checklist",
+    icon: "✅",
+    color: "#059669",
+    description:
+      "A shared team to-do list. Anyone can add, assign and tick off tasks — everyone sees the same list.",
+    hasAI: false,
+    category: "collab",
+    roles: ["everyone"],
+    defaultPrompt: "",
+    defaultSystemPrompt: "",
+    defaultWidth: 320,
+    defaultHeight: 340,
+  },
+  custom: {
+    label: "Custom",
+    icon: "✨",
+    color: "#6366f1",
+    description: "A reusable AI box you created (saved to your profile).",
+    hasAI: true,
+    category: "custom",
+    roles: ["everyone"],
+    defaultPrompt: "",
+    defaultSystemPrompt: "",
+    defaultWidth: 320,
+    defaultHeight: 320,
+  },
 };
+
+/** Preset pill colors for Label boxes (index 0 = default). */
+export const LABEL_COLORS = [
+  "#e2e8f0",
+  "#fde68a",
+  "#fecdd3",
+  "#a5f3fc",
+  "#a7f3d0",
+];
+
+/**
+ * Preset area colors for drawn rectangular areas: intentionally VERY light
+ * fills (Tailwind -100 shades) with slightly stronger -200/-300 borders, so
+ * areas read as background grouping regions and never compete with boxes,
+ * notes, or edges on top of them.
+ */
+export const AREA_COLORS: { fill: string; border: string; name: string }[] = [
+  { fill: "#fef3c7", border: "#fde68a", name: "Amber" },
+  { fill: "#dbeafe", border: "#bfdbfe", name: "Blue" },
+  { fill: "#d1fae5", border: "#a7f3d0", name: "Emerald" },
+  { fill: "#fce7f3", border: "#fbcfe8", name: "Pink" },
+  { fill: "#ede9fe", border: "#ddd6fe", name: "Violet" },
+  { fill: "#cffafe", border: "#a5f3fc", name: "Cyan" },
+  { fill: "#ffedd5", border: "#fed7aa", name: "Orange" },
+  { fill: "#f1f5f9", border: "#e2e8f0", name: "Slate" },
+];

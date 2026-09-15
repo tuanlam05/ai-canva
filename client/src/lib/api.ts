@@ -5,8 +5,16 @@ export interface GenerateRequest {
   userPrompt: string;
 }
 
+export interface TokenUsage {
+  promptTokens: number;
+  completionTokens: number;
+  totalTokens: number;
+}
+
 export interface GenerateResponse {
   content: string;
+  model?: string;
+  usage?: TokenUsage;
   error?: string;
 }
 
@@ -27,70 +35,5 @@ export async function generate(
     throw new Error(err.error || `HTTP ${res.status}`);
   }
 
-  return res.json();
-}
-
-export interface GenerateImageRequest {
-  prompt: string;
-  imageUrl?: string;
-}
-
-export interface GenerateImageResponse {
-  imageUrl: string;
-  error?: string;
-}
-
-/**
- * Calls the backend to generate a cartoon profile image via fal.ai.
- * If imageUrl is provided, uses image-to-image (cartoonify).
- * Otherwise, uses text-to-image (flux schnell) as fallback.
- */
-export async function generateImage(
-  req: GenerateImageRequest
-): Promise<GenerateImageResponse> {
-  const res = await fetch(`${API_BASE}/generate-image`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(req),
-  });
-
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ error: "Request failed" }));
-    throw new Error(err.error || `HTTP ${res.status}`);
-  }
-
-  return res.json();
-}
-
-export interface StitchResponse {
-  html: string;
-  imageUrl: string;
-  error?: string;
-}
-
-/**
- * Calls Google Stitch to generate a UI screen from a prompt.
- */
-export async function generateStitchUI(
-  prompt: string
-): Promise<StitchResponse> {
-  const res = await fetch(`${API_BASE}/stitch-generate`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ prompt }),
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ error: "Request failed" }));
-    throw new Error(err.error || `HTTP ${res.status}`);
-  }
-  return res.json();
-}
-
-export async function checkHealth(): Promise<{
-  status: string;
-  ollamaKey: string;
-  falKey: string;
-}> {
-  const res = await fetch(`${API_BASE}/health`);
   return res.json();
 }
