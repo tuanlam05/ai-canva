@@ -13,8 +13,11 @@ service cloud.firestore {
       }
 
       function isCollaborator() {
-        return isSignedIn() && request.auth.token.email in resource.data.get('collaborators', []);
-      }
+        return isSignedIn() && (
+          request.auth.token.email in resource.data.get('collaborators', [])
+          || request.auth.uid in resource.data.get('memberUids', [])
+        );
+}
       
       allow read: if isOwner() || isCollaborator();
 
