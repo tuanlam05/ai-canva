@@ -32,12 +32,11 @@ function doc(overrides: Partial<BoxDocument> = {}): BoxDocument {
 describe("docExt / isSupportedDocument", () => {
   it("extracts lowercase extensions", () => {
     expect(docExt("Report.PDF")).toBe("pdf");
-    expect(docExt("notes.md")).toBe("md");
     expect(docExt("noext")).toBe("");
   });
 
   it("accepts exactly the supported types", () => {
-    for (const name of ["a.pdf", "b.txt", "c.md", "d.csv", "e.json", "f.docx"]) {
+    for (const name of ["a.pdf", "b.txt", "c.docx"]) {
       expect(isSupportedDocument(name)).toBe(true);
     }
     expect(isSupportedDocument("virus.exe")).toBe(false);
@@ -69,10 +68,9 @@ describe("buildDocumentsOutput", () => {
 
   it("labels each document by filename", () => {
     const out = buildDocumentsOutput([
-      doc({ name: "a.txt", text: "AAA" }),
-      doc({ name: "b.md", text: "BBB" }),
+      doc({ name: "a.txt", text: "AAA" })
     ]);
-    expect(out).toBe("=== a.txt ===\nAAA\n\n=== b.md ===\nBBB");
+    expect(out).toBe("=== a.txt ===\nAAA");
   });
 
   it("skips documents that failed extraction or have no text", () => {
@@ -129,16 +127,10 @@ describe("makeDocId", () => {
 
 describe("extractDocumentText", () => {
   it("reads plain text formats directly", async () => {
-    for (const [name, content] of [
-      ["note.txt", "plain text"],
-      ["readme.md", "# Heading"],
-      ["data.csv", "a,b\n1,2"],
-      ["cfg.json", '{"x":1}'],
-    ] as const) {
-      const file = new File([content], name);
-      expect(await extractDocumentText(file)).toBe(content);
-    }
+    const file = new File(["plain text"], "note.txt");
+    expect(await extractDocumentText(file)).toBe("plain text");
   });
+   
 
   it("throws a descriptive error for unsupported types", async () => {
     const file = new File([new Uint8Array([1, 2])], "app.exe");

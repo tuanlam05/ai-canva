@@ -12,7 +12,7 @@ import type { BoxDocument } from "../types.js";
  */
 
 /** File extensions the Documents box accepts (lowercase, no dot). */
-export const SUPPORTED_DOC_EXTS = ["pdf", "txt", "md", "csv", "json", "docx"] as const;
+export const SUPPORTED_DOC_EXTS = ["pdf", "txt", "docx"] as const;
 
 /** Max extracted characters kept per document (~25k tokens). */
 export const MAX_DOC_CHARS = 100_000;
