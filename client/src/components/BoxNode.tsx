@@ -248,9 +248,11 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
           text,
           chars: text.length,
           truncated,
-          error: text
-            ? ""
-            : "This box's document-text budget is used up — remove other files first.",
+          error: !raw.trim()
+            ? "No extractable text (scanned PDF?) - paste the transcript instead."
+            : !text
+              ? "This box's document-text budget is used up — remove other files first."
+              : "",
         };
       } catch (err: any) {
         entry = {
