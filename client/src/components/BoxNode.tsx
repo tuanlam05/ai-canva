@@ -224,14 +224,11 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
 
   /**
    * Processes uploaded/dropped files one at a time: extract text client-side,
-   * trim it to the box's remaining budget, best-effort upload the raw file to
-   * Storage, then append the entry to boxData.documents so it syncs and
-   * persists. Failed extractions become entries with an error message (never
+   * trim it to the box's remaining budget. Failed extractions become entries with an error message (never
    * thrown away silently).
    */
   const handleDocumentsUpload = async (files: FileList | File[] | null) => {
     if (!files || files.length === 0) return;
-    const boardId = useBoardStore.getState().currentBoardId;
     const list = Array.from(files).slice(0, 10); // sane per-batch cap
     setDocBusy((n) => n + list.length);
     for (const file of list) {
