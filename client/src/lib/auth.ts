@@ -1,14 +1,13 @@
 import { auth, googleProvider } from "./firebase.js";
 import {
-  signInWithPopup,
+  signInWithRedirect,
   signOut,
   onAuthStateChanged,
   type User,
 } from "firebase/auth";
 
-export async function signInWithGoogle(): Promise<User> {
-  const result = await signInWithPopup(auth, googleProvider);
-  return result.user;
+export async function signInWithGoogle(): Promise<void> {
+  return await signInWithRedirect(auth, googleProvider);
 }
 
 export async function signOutUser(): Promise<void> {
