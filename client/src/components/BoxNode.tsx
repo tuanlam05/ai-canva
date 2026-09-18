@@ -5,7 +5,6 @@ import { useBoardStore } from "../store/boardStore.js";
 import { BOX_TYPES, LABEL_COLORS } from "../types.js";
 import type { BoxType } from "../types.js";
 import ChecklistPanel from "./ChecklistPanel.js";
-import { uploadDocumentToStorage } from "../lib/storage.js";
 import {
   SUPPORTED_DOC_EXTS,
   clampDocText,
@@ -227,14 +226,11 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
 
   /**
    * Processes uploaded/dropped files one at a time: extract text client-side,
-   * trim it to the box's remaining budget, best-effort upload the raw file to
-   * Storage, then append the entry to boxData.documents so it syncs and
-   * persists. Failed extractions become entries with an error message (never
+   * trim it to the box's remaining budget. Failed extractions become entries with an error message (never
    * thrown away silently).
    */
   const handleDocumentsUpload = async (files: FileList | File[] | null) => {
     if (!files || files.length === 0) return;
-    const boardId = useBoardStore.getState().currentBoardId;
     const list = Array.from(files).slice(0, 10); // sane per-batch cap
     setDocBusy((n) => n + list.length);
     for (const file of list) {
@@ -245,30 +241,20 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
           useBoardStore.getState().boxData[id]?.documents,
         );
         const { text, truncated } = clampDocText(raw, budget);
-        // Best-effort raw-file upload so the original stays downloadable.
-        let url = "";
-        if (boardId) {
-          try {
-            url = await uploadDocumentToStorage(boardId, id, file);
-          } catch (err) {
-            console.warn(
-              "Document upload to storage failed (text is kept):",
-              err,
-            );
-          }
-        }
         entry = {
           id: makeDocId(file.name, file.size),
           name: file.name,
           size: file.size,
           ext: docExt(file.name),
-          url,
+          url: "",
           text,
           chars: text.length,
           truncated,
-          error: text
-            ? ""
-            : "This box's document-text budget is used up — remove other files first.",
+          error: !raw.trim()
+            ? "No extractable text (scanned PDF?) - paste the transcript instead."
+            : !text
+              ? "This box's document-text budget is used up — remove other files first."
+              : "",
         };
       } catch (err: any) {
         entry = {
@@ -425,7 +411,7 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
                       Click or drop files
                     </div>
                     <div className="text-[11px] text-slate-400 mt-1">
-                      PDF, DOCX, TXT, MD, CSV, JSON
+                      PDF, DOCX, TXT
                     </div>
                   </div>
 
@@ -469,16 +455,6 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
                                 </>
                               )}
                             </div>
-                            {d.url && (
-                              <a
-                                href={d.url}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="text-[11px] text-indigo-500 hover:underline"
-                              >
-                                Open original ↗
-                              </a>
-                            )}
                           </div>
                           <button
                             onClick={() => removeDocument(d.id)}
