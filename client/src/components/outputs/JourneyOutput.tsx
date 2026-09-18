@@ -6,8 +6,10 @@ interface Evidence {
 }
 
 interface Issue {
+  theme_id: string;
   theme: string;
   description: string;
+  sentiment: "positive" | "negative" | "neutral";
   evidence: Evidence[];
 }
 
@@ -19,6 +21,17 @@ interface Stage {
 
 interface JourneyMapperOutputProps {
   content: string;
+}
+
+// Full class names as literals so Tailwind's scanner picks them up
+const SENTIMENT_STYLES = {
+  negative: {icon: "⚠", card: "border-red-100 bg-red-50/40", quote: "bg-red-50/60 border-red-300"},
+  positive: { icon: "✓", card: "border-green-100 bg-green-50/40", quote: "bg-green-50/60 border-green-300" },
+  neutral: { icon: "•", card: "border-slate-200 bg-slate-50", quote: "bg-slate-100 border-slate-300" },
+} as const;
+
+function styles(sentiment: string | undefined) {
+  return SENTIMENT_STYLES[sentiment as keyof typeof SENTIMENT_STYLES] ?? SENTIMENT_STYLES.neutral;
 }
 
 export default function JourneyMapperOutput({ content }: JourneyMapperOutputProps) {
@@ -67,17 +80,21 @@ export default function JourneyMapperOutput({ content }: JourneyMapperOutputProp
         const hasIssues = stage.issues && stage.issues.length > 0;
         const totalCount = stage.issues?.length ?? 0;
         const isLast = i === stages.length - 1;
+        // Dot colour: red if any negative finding, green if only positive,
+        // grey when empty or neutral.
+        const hasNegative = stage.issues?.some((iss) => iss.sentiment === "negative");
+        const hasPositive = stage.issues?.some((iss) => iss.sentiment === "positive");
+        const dotClass = hasNegative
+          ? "border-red-400 bg-red-50"
+          : hasPositive
+            ? "border-green-400 bg-green-50"
+            : "border-slate-300 bg-white";
 
         return (
           <div key={i} className="relative flex gap-3">
             {/* Timeline dot + connecting line */}
             <div className="flex flex-col items-center flex-shrink-0">
-              <div
-                className={
-                  "w-3 h-3 rounded-sm border-2 mt-1.5 " +
-                  (hasIssues ? "border-red-400 bg-red-50" : "border-slate-300 bg-white")
-                }
-              />
+              <div className={"w-3 h-3 rounded-sm border-2 mt-1.5 " + dotClass} />
               {!isLast && <div className="w-px flex-1 bg-slate-200 my-0.5" />}
             </div>
 
@@ -97,8 +114,8 @@ export default function JourneyMapperOutput({ content }: JourneyMapperOutputProp
                 </div>
                 <p className="text-xs text-slate-400 truncate">
                   {hasIssues
-                    ? `${totalCount} issue${totalCount > 1 ? "s" : ""} found`
-                    : "No issues found at this stage"}
+                    ? `${totalCount} finding${totalCount > 1 ? "s" : ""}`
+                    : "No findings at this stage"}
                 </p>
               </button>
 
@@ -113,26 +130,29 @@ export default function JourneyMapperOutput({ content }: JourneyMapperOutputProp
                   )}
 
                   {hasIssues &&
-                    stage.issues.map((issue, j) => (
+                    stage.issues.map((issue, j) => {
+                      const s = styles(issue.sentiment);
+                      return (
                       <div
                         key={j}
-                        className="border border-red-100 bg-red-50/40 rounded-lg p-2 space-y-1"
+                        className={"border rounded-lg p-2 space-y-1 " + s.card}
                       >
                         <p className="text-xs font-medium text-slate-700">
-                          ⚠ {issue.theme}
+                          {s.icon} {issue.theme}
                         </p>
                         <p className="text-xs text-slate-500">{issue.description}</p>
                         {issue.evidence?.map((ev, k) => (
                           <div
                             key={k}
-                            className="text-xs text-slate-600 bg-red-50/60 rounded p-1.5 border-l-2 border-red-300"
+                            className={"text-xs text-slate-600 rounded p-1.5 border-l-2 " + s.quote}
                           >
                             <p className="italic">&ldquo;{ev.quote}&rdquo;</p>
                             <p className="text-slate-400 mt-0.5">— {ev.source}</p>
                           </div>
                         ))}
                       </div>
-                    ))}
+                      );
+                    })}
                 </div>
               )}
             </div>
