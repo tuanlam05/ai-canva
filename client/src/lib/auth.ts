@@ -7,7 +7,7 @@ import {
 } from "firebase/auth";
 
 export async function signInWithGoogle(): Promise<void> {
-  return await signInWithRedirect(auth, googleProvider);
+  await signInWithRedirect(auth, googleProvider);
 }
 
 export async function signOutUser(): Promise<void> {
