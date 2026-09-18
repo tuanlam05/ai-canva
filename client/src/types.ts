@@ -1,25 +1,63 @@
-export type BoxType = 
-  | "idea"
-  | "research"
-  | "summarize"
-  | "image"
-  | "cartoon"
-  | "slides"
-  | "code"
-  | "prd"
-  | "devplan"
-  | "ui"
-  | "stitch"
+export type BoxType =
+  | "text"
+  | "documents"
+  | "insight"
+  | "journey"
   | "safety"
-  | "coach";
+  | "coach"
+  | "custom"
+  | "checklist"
+  | "label"
+  | "note";
+
+/**
+ * One task in a Checklist box — the team's shared to-do list. Every field is
+ * always defined (no `undefined`) because these objects live inside a BoxData
+ * array and Firestore rejects `undefined` anywhere in a nested value.
+ *
+ * Attribution is deliberately stored per item: a checklist is edited by the
+ * whole team (last-write-wins between simultaneous users, like notes), so
+ * "who added it" and "who ticked it off" are part of the record.
+ */
+export interface ChecklistItem {
+  id: string;
+  text: string;
+  done: boolean;
+  /** Email of the teammate who owns the task ("" = unassigned). */
+  assignee: string;
+  /** Who added the task (email) and when (epoch ms). */
+  createdBy: string;
+  createdAt: number;
+  /** Who ticked it off and when ("" / 0 while the task is still open). */
+  doneBy: string;
+  doneAt: number;
+}
 
 export type BoxStatus = "idle" | "running" | "done" | "error";
 
-/** A single slide in a generated deck. */
-export interface Slide {
-  title: string;
-  bullets: string[];
-  notes?: string;
+/**
+ * A document attached to a Documents box. All fields are always defined (no
+ * `undefined`) so the object survives Firestore writes, which reject
+ * `undefined` anywhere in a nested value.
+ */
+export interface BoxDocument {
+  id: string;
+  /** Original filename (kept for labeling in prompts and the file list). */
+  name: string;
+  /** Raw file size in bytes. */
+  size: number;
+  /** Lowercase extension without the dot ("pdf", "txt", …). */
+  ext: string;
+  /** Storage download URL — "" when the file was not uploaded (local mode). */
+  url: string;
+  /** Extracted text — "" when extraction failed (see error). */
+  text: string;
+  /** Characters of extracted text actually kept (after any truncation). */
+  chars: number;
+  /** True when the extracted text was capped (see lib/documents.ts limits). */
+  truncated: boolean;
+  /** "" when extraction succeeded, otherwise a short failure reason. */
+  error: string;
 }
 
 /** A user currently active on a board with their cursor position. */
@@ -31,6 +69,9 @@ export interface PresenceUser {
   color: string;
   cursorX: number;
   cursorY: number;
+  /** False when the user is online (heartbeat) but has never moved their
+   *  cursor — Cursors skips those so no stray cursor renders at (0, 0). */
+  hasCursor?: boolean;
 }
 
 /** A connected upstream input with its box name and output. */
@@ -49,13 +90,45 @@ export interface BoxData {
   error?: string;
   imageData?: string;
   outputImage?: string;
-  slides?: Slide[];
-  /** For Code boxes: the generated React component code (JSX). */
-  code?: string;
+  /** For Documents boxes: the uploaded files + their extracted text. */
+  documents?: BoxDocument[];
+  /** Token usage from the most recent LLM call for this box (text AI boxes). */
+  tokens?: {
+    promptTokens: number;
+    completionTokens: number;
+    totalTokens: number;
+  };
+  /** For Note boxes: who created the note (set once at creation). */
+  authorEmail?: string;
+  authorName?: string;
+  /** For Label boxes: the pill's background color (one of LABEL_COLORS). */
+  labelColor?: string;
+  /**
+   * For Checklist boxes: the shared team to-do items (see
+   * `client/src/lib/checklist.ts` for every mutation and the paste parser).
+   */
+  checklistItems?: ChecklistItem[];
 }
 
 /** Metadata for each box type. */
-export type BoxCategory = "input" | "worker" | "custom";
+export type BoxCategory =
+  | "input"
+  | "worker"
+  | "collab"
+  | "companion"
+  | "custom"
+  | "sdlc";
+
+/**
+ * A role/persona a box is aimed at. Boxes tagged `"everyone"` appear in every
+ * role view (they are shared pipeline scaffolding). See `docs/BOX_TYPES.md`.
+ */
+export type BoxRole =
+  | "everyone"
+  | "designer"
+  | "developer"
+  | "product"
+  | "sdlc";
 
 export interface BoxTypeMeta {
   label: string;
@@ -64,6 +137,8 @@ export interface BoxTypeMeta {
   description: string;
   hasAI: boolean;
   category: BoxCategory;
+  /** Role tags used to filter the palette per persona (labels, not permissions). */
+  roles: BoxRole[];
   defaultPrompt: string;
   defaultSystemPrompt: string;
   defaultWidth: number;
@@ -71,153 +146,51 @@ export interface BoxTypeMeta {
 }
 
 export const BOX_TYPES: Record<BoxType, BoxTypeMeta> = {
-  idea: {
-    label: "Idea",
+  text: {
+    label: "Text Context",
     icon: "💡",
     color: "#fbbf24",
-    description: "Write down a basic idea. No AI — just your text.",
+    description:
+      "Write down simple context for your research project, in text form.",
     hasAI: false,
     category: "input",
+    roles: ["everyone"],
     defaultPrompt: "",
     defaultSystemPrompt: "",
     defaultWidth: 320,
     defaultHeight: 200,
   },
-  research: {
-    label: "Research",
+  insight: {
+    label: "Insight Weaver",
     icon: "🔍",
     color: "#60a5fa",
-    description: "Research a topic using AI. Takes input from connected boxes.",
+    description:
+      "Extracts themes and pain points from research transcripts, with verified quotes, sources, and sentiment.",
     hasAI: true,
     category: "worker",
+    roles: ["everyone"],
     defaultPrompt:
-      "Research the following topic thoroughly. Provide key findings, relevant context, market landscape, and potential risks. Format as Markdown with clear headings.\n\nTopic:\n{{input_1}}",
+      "Identify recurring themes in the following research material — this includes pain points, points of confusion, AND things that work well or receive positive feedback. Aim for 5 to 8 distinct themes, but let the evidence decide the exact number: if the material only clearly supports fewer than 5 well-evidenced themes, return fewer — do not invent or split themes just to reach 5. If there are more than 8 genuinely distinct issues, merge closely related ones under a single broader theme rather than exceeding 8. Each theme must be genuinely distinct — do not create two themes that describe the same underlying pattern with different wording. For each theme, provide a short description, classify its sentiment, and cite the exact participant(s) and verbatim quotes that support it. Only include themes with direct textual evidence — do not infer themes that aren't explicitly supported by quotes.\n\nResearch Material:\n{{inputs}}",
     defaultSystemPrompt:
-      "You are a thorough research assistant. Provide well-structured, factual findings in Markdown format. Be concise but comprehensive.",
+      'You are a UX research synthesis assistant. You only draw conclusions from the research material provided to you — never from general knowledge, assumptions, or information not present in the supplied documents. Every finding you produce must include a direct, verbatim quote from the source material as evidence. If you cannot find a verbatim quote to support a claim, do not include that claim.\n\nEach theme must have a unique ID in the format "theme-1", "theme-2", "theme-3", etc. Assign IDs sequentially starting from "theme-1". The ID identifies the theme and must be unique within this output.\n\nClassify each theme\'s sentiment as exactly one of these three values — no other values are allowed:\n- "negative": a pain point, problem, or complaint\n- "positive": a compliment or something explicitly working well\n- "neutral": a factual observation with no clear positive or negative charge\n\nOutput strictly in the following JSON structure — no prose outside the JSON:\n\n{\n  "themes": [\n    {\n      "id": "theme-1",\n      "theme": "short theme name",\n      "description": "1-2 sentence description of the pattern",\n      "sentiment": "positive" | "negative" | "neutral",\n      "evidence": [\n        { "quote": "exact verbatim quote from source", "source": "participant/document name" }\n      ]\n    }\n  ]\n}',
     defaultWidth: 320,
     defaultHeight: 320,
   },
-  summarize: {
-    label: "Summarize",
-    icon: "📋",
-    color: "#a78bfa",
-    description: "Combine and summarize multiple inputs into a concise overview.",
-    hasAI: true,
-    category: "worker",
-    defaultPrompt:
-      "Synthesize the following inputs into a clear, concise summary. Identify common themes, key points, and any contradictions. Format as Markdown.\n\n{{inputs}}",
-    defaultSystemPrompt:
-      "You are a synthesis expert. Combine multiple inputs into a clear, concise summary in Markdown format. Highlight key insights.",
-    defaultWidth: 320,
-    defaultHeight: 320,
-  },
-  image: {
-    label: "Image",
-    icon: "🖼️",
-    color: "#34d399",
-    description: "Upload an image. The image becomes input for downstream boxes.",
-    hasAI: false,
-    category: "input",
-    defaultPrompt: "",
-    defaultSystemPrompt: "",
-    defaultWidth: 320,
-    defaultHeight: 320,
-  },
-  cartoon: {
-    label: "Cartoon Profile",
-    icon: "🎨",
-    color: "#f472b6",
-    description: "Generate cartoon profile pictures. Connect an Image box for image-to-image, or an Idea box for text-to-image.",
-    hasAI: true,
-    category: "worker",
-    defaultPrompt:
-      "Cartoon style 3D profile picture of {{input_1}}, colorful, fun, stylized cartoon character, clean simple background, professional avatar",
-    defaultSystemPrompt: "",
-    defaultWidth: 320,
-    defaultHeight: 380,
-  },
-  slides: {
-    label: "Slides",
-    icon: "📊",
-    color: "#fb923c",
-    description: "Generate a pitch deck from research. Takes input from connected boxes and creates visual slides.",
-    hasAI: true,
-    category: "worker",
-    defaultPrompt:
-      "Create a 10-slide startup pitch deck from the following research. Each slide should have a clear title and 3-5 concise bullet points.\n\nSlide structure:\n1. Problem — What pain point exists?\n2. Solution — How does your product solve it?\n3. Market Size — How big is the opportunity?\n4. Product — Key features and demo highlights\n5. Business Model — How do you make money?\n6. Traction — Current progress and metrics\n7. Competition — Competitive landscape and advantage\n8. Team — Who is building this?\n9. Financials — Key projections\n10. Ask — What do you need from investors?\n\nOutput as JSON array: [{\"title\": \"...\", \"bullets\": [\"...\", \"...\"], \"notes\": \"...\"}]\n\nResearch:\n{{inputs}}",
-    defaultSystemPrompt:
-      "You are a pitch deck creator. You create concise, impactful slides from research data. Output ONLY a valid JSON array of slide objects. Each slide has a \"title\" (string), \"bullets\" (array of strings, 3-5 items), and optional \"notes\" (string with speaker notes). Do not include any text before or after the JSON array.",
-    defaultWidth: 380,
-    defaultHeight: 380,
-  },
-  code: {
-    label: "Code",
-    icon: "💻",
-    color: "#22d3ee",
-    description: "Generate a React prototype from research. Live preview in the box.",
-    hasAI: true,
-    category: "worker",
-    defaultPrompt:
-      "Create a React prototype for the following requirements. Use React hooks (React.useState, React.useEffect, etc.) and inline styles for all styling. Keep it SIMPLE: use small mock data (3-5 items max), focus on the core UI and interactivity. Do NOT generate extensive data arrays or constant definitions. The output must be a complete working component with the App function and ReactDOM.createRoot render call.\n\nRequirements:\n{{inputs}}",
-    defaultSystemPrompt:
-      "You are a React developer. You write clean, working React components. Output ONLY JavaScript/JSX code. No HTML wrapper, no script tags, no markdown code blocks, no explanation. Use the React.* API (React.useState, React.useEffect) — do not use import statements. Define a component called App. End with ReactDOM.createRoot(document.getElementById('root')).render(<App />). Use inline styles for all styling. CRITICAL: Keep mock data SMALL (3-5 items maximum). Do NOT generate extensive data arrays, long constant lists, or large data definitions. Focus on the UI component, interactivity, and visual design. The output MUST include the full App component and the ReactDOM.createRoot render call.",
-    defaultWidth: 440,
-    defaultHeight: 420,
-  },
-  prd: {
-    label: "PRD",
-    icon: "📄",
-    color: "#818cf8",
-    description: "Generate a Product Requirements Document from research. Structures findings into features, user stories, and specs for the Code box.",
-    hasAI: true,
-    category: "worker",
-    defaultPrompt:
-      "Create a Product Requirements Document (PRD) based on the following research and ideas. Structure it with these sections:\n\n## Product Overview\nBrief description of what we are building and why.\n\n## Problem Statement\nWhat pain point does this solve? Who has this problem?\n\n## Target Users\nWho are the primary users? What are their needs?\n\n## Core Features\nList the key features with priority (P0 = must have, P1 = should have, P2 = nice to have).\n\n## User Stories\nWrite 3-5 user stories in the format: As a [user], I want to [action] so that [benefit].\n\n## UI/UX Guidelines\nKey screens, layout considerations, and design principles.\n\n## Technical Requirements\nTechnology stack recommendations, key constraints, and dependencies.\n\n## Success Metrics\nHow will we measure if this product is successful?\n\nResearch & Ideas:\n{{inputs}}",
-    defaultSystemPrompt:
-      "You are a product manager. You create clear, structured Product Requirements Documents (PRDs) from research and ideas. Format as Markdown with clear headings, bullet points, and numbered lists. Be specific and actionable — this PRD will be used by developers to build a prototype.",
-    defaultWidth: 360,
-    defaultHeight: 380,
-  },
-  devplan: {
-    label: "Dev Plan",
+  journey: {
+    label: "Journey Mapper",
     icon: "🗺️",
-    color: "#14b8a6",
-    description: "Transform a PRD into a detailed development plan with components, state, and implementation steps for the Code box.",
+    color: "#a78bfa",
+    description:
+      "Maps grounded themes onto journey stages — supplied by the user or inferred — preserving sentiment and verbatim evidence.",
     hasAI: true,
     category: "worker",
+    roles: ["everyone"],
     defaultPrompt:
-      "Create a simple development plan for a React prototype based on this PRD. Keep it short and practical.\n\nList:\n1. Components to build (names + 1-line purpose)\n2. State variables (names + types)\n3. Key functions (names + what they do)\n4. Build order (3-5 steps)\n\nThis is for a simple prototype. Use small mock data. Do NOT over-engineer.\n\nPRD:\n{{inputs}}",
+      "Map the themes below onto a user journey. If any input contains a list of journey stages, use exactly those stages in that order. Otherwise, derive a plausible generic sequence of stages a user would typically go through in this kind of app. Stay strictly grounded for the theme/evidence content itself — do not alter or embellish the ids, names, descriptions, sentiment, or quotes.\n\nInputs:\n{{inputs}}",
     defaultSystemPrompt:
-      "You are a pragmatic developer. Create SHORT, simple development plans for React prototypes. Use React hooks and inline styles. Keep everything minimal — this is a prototype, not production. Be concise.",
-    defaultWidth: 360,
-    defaultHeight: 380,
-  },
-  ui: {
-    label: "UI Design",
-    icon: "✨",
-    color: "#c026d3",
-    description: "Generate beautiful, production-quality React UIs with Tailwind CSS.",
-    hasAI: true,
-    category: "worker",
-    defaultPrompt:
-      "Design a beautiful React UI for the following. Use Tailwind CSS classes for ALL styling (no inline styles). Make it look like a real polished product.\n\nDesign requirements:\n- Modern, clean design with attention to detail\n- Good spacing, typography, and color harmony\n- Use gradients, shadows, rounded corners, and smooth transitions\n- Hover states on interactive elements\n- Include at least one gradient or glassmorphism effect\n- Make it responsive\n- Use small mock data (3-5 items)\n\nOutput ONLY JavaScript/JSX code. Use React hooks (React.useState, React.useEffect). Define a component called App. End with ReactDOM.createRoot(document.getElementById('root')).render(<App />).\n\nDescription:\n{{inputs}}",
-    defaultSystemPrompt:
-      "You are an expert UI designer and React developer. You create beautiful, modern, production-quality user interfaces using Tailwind CSS classes. Focus on visual polish: gradients, shadows, rounded corners, good typography, proper spacing, and smooth transitions. Make it look like a real product — not a demo. Output ONLY JavaScript/JSX code. Use the React.* API. Define App component. End with ReactDOM.createRoot(document.getElementById('root')).render(<App />).",
-    defaultWidth: 440,
-    defaultHeight: 420,
-  },
-  stitch: {
-    label: "Stitch UI",
-    icon: "🧵",
-    color: "#0ea5e9",
-    description: "Generate beautiful UI screens using Google Stitch. Returns production-quality HTML directly.",
-    hasAI: true,
-    category: "worker",
-    defaultPrompt:
-      "Generate a beautiful, modern UI screen for the following. Make it polished and production-ready with good spacing, typography, and visual design.\n\nDescription:\n{{inputs}}",
-    defaultSystemPrompt: "",
-    defaultWidth: 440,
-    defaultHeight: 420,
+      'You are a UX journey mapping assistant. You map research themes onto the stages of a user journey.\n\nSTAGES\n- If any input contains a list of journey stages, use exactly those stages, in that order. Do not add, rename, split, or merge them.\n- Otherwise, derive 5 to 8 stages a user would typically pass through in this kind of app, in chronological order. These stages are a structural assumption drawn from general UX knowledge, not a claim grounded in the research.\n\nMAPPING\n- Assign each theme to the single stage where it most plausibly occurs, based on its content. Include positive, negative, and neutral themes.\n- Every theme must appear exactly once. If a theme does not clearly fit any stage, place it in a final stage named "Unassigned" rather than omitting it.\n- A stage may have zero issues. Do not invent issues to fill it.\n\nGROUNDING\n- Copy each theme\'s id, name, description, sentiment, and quotes exactly as given. Do not paraphrase, embellish, or change them.\n- Do not invent quotes, participants, or evidence.\n\nOUTPUT\nReturn only JSON in this structure — no prose before or after:\n\n{\n  "stages": [\n    {\n      "stage_name": "short name for this stage",\n      "stage_description": "one sentence on what happens at this stage",\n      "issues": [\n        {\n          "theme_id": "id from input, unchanged (e.g. theme-3)",\n          "theme": "theme name, unchanged from input",\n          "description": "theme description, unchanged from input",\n          "sentiment": "positive" | "negative" | "neutral",\n          "evidence": [\n            { "quote": "exact verbatim quote from source", "source": "participant/document name" }\n          ]\n        }\n      ]\n    }\n  ]\n}',
+    defaultWidth: 320,
+    defaultHeight: 320,
   },
   safety: {
     label: "Patient Safety Reviewer",
@@ -226,10 +199,9 @@ export const BOX_TYPES: Record<BoxType, BoxTypeMeta> = {
     description: "Review patient safety risks.",
     hasAI: true,
     category: "worker",
-    defaultPrompt:
-      "placeholder",
-    defaultSystemPrompt:
-      "placeholder",
+    roles: ["everyone"],
+    defaultPrompt: "placeholder",
+    defaultSystemPrompt: "placeholder",
     defaultWidth: 360,
     defaultHeight: 380,
   },
@@ -240,11 +212,104 @@ export const BOX_TYPES: Record<BoxType, BoxTypeMeta> = {
     description: "Generate a step-by-step procedure for a UX task.",
     hasAI: true,
     category: "worker",
-    defaultPrompt:
-      "placeholder",
-    defaultSystemPrompt:
-      "placeholder",
+    roles: ["everyone"],
+    defaultPrompt: "placeholder",
+    defaultSystemPrompt: "placeholder",
     defaultWidth: 360,
     defaultHeight: 380,
   },
+  documents: {
+    label: "Documents",
+    icon: "📎",
+    color: "#64748b",
+    description:
+      "Upload PDF, Word, or text files. Their extracted text becomes input for downstream boxes via {{inputs}}.",
+    hasAI: false,
+    category: "input",
+    roles: ["everyone"],
+    defaultPrompt: "",
+    defaultSystemPrompt: "",
+    defaultWidth: 340,
+    defaultHeight: 380,
+  },
+  note: {
+    label: "Note",
+    icon: "🗒️",
+    color: "#fbbf24",
+    description:
+      "A post-it style note for team communication. Everyone on the board sees it.",
+    hasAI: false,
+    category: "collab",
+    roles: ["everyone"],
+    defaultPrompt: "",
+    defaultSystemPrompt: "",
+    defaultWidth: 260,
+    defaultHeight: 240,
+  },
+  label: {
+    label: "Label",
+    icon: "🏷️",
+    color: "#64748b",
+    description: "A simple colored text label to annotate areas of the board.",
+    hasAI: false,
+    category: "collab",
+    roles: ["everyone"],
+    defaultPrompt: "",
+    defaultSystemPrompt: "",
+    defaultWidth: 200,
+    defaultHeight: 64,
+  },
+  checklist: {
+    label: "Checklist",
+    icon: "✅",
+    color: "#059669",
+    description:
+      "A shared team to-do list. Anyone can add, assign and tick off tasks — everyone sees the same list.",
+    hasAI: false,
+    category: "collab",
+    roles: ["everyone"],
+    defaultPrompt: "",
+    defaultSystemPrompt: "",
+    defaultWidth: 320,
+    defaultHeight: 340,
+  },
+  custom: {
+    label: "Custom",
+    icon: "✨",
+    color: "#6366f1",
+    description: "A reusable AI box you created (saved to your profile).",
+    hasAI: true,
+    category: "custom",
+    roles: ["everyone"],
+    defaultPrompt: "",
+    defaultSystemPrompt: "",
+    defaultWidth: 320,
+    defaultHeight: 320,
+  },
 };
+
+/** Preset pill colors for Label boxes (index 0 = default). */
+export const LABEL_COLORS = [
+  "#e2e8f0",
+  "#fde68a",
+  "#fecdd3",
+  "#a5f3fc",
+  "#a7f3d0",
+];
+
+/**
+ * Preset area colors for drawn rectangular areas: intentionally VERY light
+ * fills (Tailwind -100 shades) with slightly stronger -200/-300 borders, so
+ * areas read as background grouping regions and never compete with boxes,
+ * notes, or edges on top of them.
+ */
+export const AREA_COLORS: { fill: string; border: string; name: string }[] = [
+  { fill: "#fef3c7", border: "#fde68a", name: "Amber" },
+  { fill: "#dbeafe", border: "#bfdbfe", name: "Blue" },
+  { fill: "#d1fae5", border: "#a7f3d0", name: "Emerald" },
+  { fill: "#fce7f3", border: "#fbcfe8", name: "Pink" },
+  { fill: "#ede9fe", border: "#ddd6fe", name: "Violet" },
+  { fill: "#cffafe", border: "#a5f3fc", name: "Cyan" },
+  { fill: "#ffedd5", border: "#fed7aa", name: "Orange" },
+  { fill: "#f1f5f9", border: "#e2e8f0", name: "Slate" },
+];
