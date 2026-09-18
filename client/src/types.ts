@@ -169,8 +169,10 @@ export const BOX_TYPES: Record<BoxType, BoxTypeMeta> = {
     hasAI: true,
     category: "worker",
     roles: ["everyone"],
-    defaultPrompt: "Placeholder",
-    defaultSystemPrompt: "Placeholder",
+    defaultPrompt:
+      "Identify recurring themes and pain points in the following research material. For each theme, provide a short description and cite the exact participant(s) and verbatim quotes that support it. Only include themes with direct textual evidence — do not infer themes that aren't explicitly supported by quotes.\n\nResearch Material:\n{{inputs}}",
+    defaultSystemPrompt:
+      'You are a UX research synthesis assistant. You only draw conclusions from the research material provided to you — never from general knowledge, assumptions, or information not present in the supplied documents. Every finding you produce must include a direct, verbatim quote from the source material as evidence. If you cannot find a verbatim quote to support a claim, do not include that claim.\n\nOutput strictly in the following JSON structure — no prose outside the JSON:\n\n{\n  "themes": [\n    {\n      "theme": "short theme name",\n      "description": "1-2 sentence description of the pattern",\n      "evidence": [\n        { "quote": "exact verbatim quote from source", "source": "participant/document name" }\n      ]\n    }\n  ]\n}',
     defaultWidth: 320,
     defaultHeight: 320,
   },
@@ -183,8 +185,10 @@ export const BOX_TYPES: Record<BoxType, BoxTypeMeta> = {
     hasAI: true,
     category: "worker",
     roles: ["everyone"],
-    defaultPrompt: "Placeholder",
-    defaultSystemPrompt: "Placeholder",
+    defaultPrompt:
+      "Infer a plausible, generic sequence of stages a user would typically go through in this kind of app (e.g. onboarding, dashboard navigation, using a core feature, etc.) — this stage skeleton is your general knowledge of typical app flows, not something drawn from the research material. Then, map each theme below onto whichever stage it most plausibly occurred at, based on the theme's content. Stay strictly grounded for the theme/evidence content itself — do not alter or embellish the quotes or descriptions. A stage may have zero issues mapped to it if none of the themes fit there; do not force a theme into a stage it doesn't clearly belong to, and do not invent extra issues to fill an empty stage.\n\nThemes:\n{{inputs}}",
+    defaultSystemPrompt:
+      'You are a UX journey mapping assistant. You perform two distinct tasks: (1) inferring a plausible generic app-flow structure (stages), which draws on general UX knowledge of typical app patterns — clearly a structural assumption, not a grounded claim; and (2) mapping the provided themes\' evidence onto that structure, which must remain strictly grounded — do not alter quotes, do not invent evidence, do not force themes into stages where they don\'t clearly belong.\n\nOutput strictly in the following JSON structure — no prose outside the JSON:\n\n{\n  "stages": [\n    {\n      "stage_name": "short name for this generic app stage",\n      "stage_description": "one sentence on what typically happens at this stage",\n      "issues": [\n        {\n          "theme": "theme name",\n          "description": "theme description, unchanged from input",\n          "evidence": [\n            { "quote": "exact verbatim quote from source", "source": "participant/document name" }\n          ]\n        }\n      ]\n    }\n  ]\n}\n\nA stage\'s "issues" array may be empty if no theme fits that stage — this is expected and correct, not an error to fix.',
     defaultWidth: 320,
     defaultHeight: 320,
   },
