@@ -61,7 +61,7 @@ export async function generateContent(
     body: JSON.stringify({
       model,
       stream: false,
-      options: { num_predict: 8192 },
+      options: { num_predict: 8192, temperature: 0, seed: 42 },
       messages,
     }),
   });

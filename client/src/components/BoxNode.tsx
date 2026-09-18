@@ -16,6 +16,8 @@ import {
   remainingDocBudget,
 } from "../lib/documents.js";
 import type { BoxDocument } from "../types.js";
+import InsightWeaverOutput from "./outputs/InsightOutput.js";
+import JourneyMapperOutput from "./outputs/JourneyOutput.js";
 
 function BoxNode({ id, data, selected, type }: NodeProps) {
   const boxType = (data.boxType || type) as BoxType;
@@ -506,11 +508,17 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
                 </div>
               )}
 
-              {hasTextOutput && !isRunning && (
-                <div className="markdown-output text-slate-700 text-sm">
-                  <ReactMarkdown>{boxData.output}</ReactMarkdown>
-                </div>
-              )}
+              {hasTextOutput &&
+                !isRunning &&
+                (boxType === "insight" ? (
+                  <InsightWeaverOutput content={boxData.output} />
+                ) : boxType === "journey" ? (
+                  <JourneyMapperOutput content={boxData.output} />
+                ) : (
+                  <div className="markdown-output text-slate-700 text-sm">
+                    <ReactMarkdown>{boxData.output}</ReactMarkdown>
+                  </div>
+                ))}
               {!hasTextOutput && !isRunning && !hasError && !isUtility && (
                 <div className="text-slate-400 text-sm py-4 text-center">
                   <>
@@ -547,7 +555,7 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
               className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium text-white transition disabled:opacity-50"
               style={{ backgroundColor: meta.color }}
             >
-              "▶ Run"
+              ▶ Run
             </button>
             <button
               onClick={() => setShowSettings(!showSettings)}
