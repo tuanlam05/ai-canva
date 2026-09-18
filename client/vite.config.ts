@@ -26,13 +26,13 @@ async function getServerPort(): Promise<number> {
   return fallbackPort;
 }
 
-export default defineConfig(({ command }) => ({
+export default defineConfig(async ({ command }) => ({
   plugins: [react()],
   server: {
     port: 5173,
     strictPort: false,
     ...(command === "serve"
-      ? { proxy: { "/api": `http://localhost:${getServerPort()}` } }
+      ? { proxy: { "/api": `http://localhost:${await getServerPort()}` } }
       : {}),
   },
   build: {
