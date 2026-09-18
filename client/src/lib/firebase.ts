@@ -1,7 +1,6 @@
 import { initializeApp } from "firebase/app";
 import { getAuth, GoogleAuthProvider, setPersistence, browserLocalPersistence } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
-import { getStorage } from "firebase/storage";
 
 const firebaseConfig = {
   apiKey: "AIzaSyA1ZIcRxu0o6DGGCiNQ3Z9OMzZVcqsLr_U",
@@ -22,4 +21,3 @@ setPersistence(auth, browserLocalPersistence).catch(console.error);
 export { auth };
 export const googleProvider = new GoogleAuthProvider();
 export const db = getFirestore(app);
-export const storage = getStorage(app);
