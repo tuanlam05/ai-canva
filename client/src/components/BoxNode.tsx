@@ -1,4 +1,4 @@
-import { memo, useState, useRef, useEffect } from "react";
+import { memo, useState, useRef } from "react";
 import { Handle, Position, NodeResizer, type NodeProps } from "@xyflow/react";
 import ReactMarkdown from "react-markdown";
 import { useBoardStore } from "../store/boardStore.js";
@@ -55,6 +55,11 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const promptRef = useRef<HTMLTextAreaElement>(null);
+
+  if (!meta) {
+    console.error(`Unknown box type: ${boxType}`);
+    return null; // or render a fallback "unknown box" UI
+  }
 
   // Find connected upstream box names for the settings panel
   const connectedInputs = edges

@@ -45,7 +45,9 @@ export default function App() {
   const clearBoard = useBoardStore((s) => s.clearBoard);
   const unsubscribeFromBoard = useBoardStore((s) => s.unsubscribeFromBoard);
   const cleanupPresence = useBoardStore((s) => s.cleanupPresence);
-  const subscribeToBoardUpdates = useBoardStore((s) => s.subscribeToBoardUpdates);
+  const subscribeToBoardUpdates = useBoardStore(
+    (s) => s.subscribeToBoardUpdates,
+  );
 
   const [isFacilitatorUser, setIsFacilitatorUser] = useState(false);
   const [facilitatorView, setFacilitatorView] = useState(false);
@@ -168,7 +170,7 @@ export default function App() {
       }
     };
     initBoard();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, authLoading]);
 
   // Auto-subscribe to board updates whenever currentBoardId changes.
@@ -188,16 +190,21 @@ export default function App() {
     if (state.nodes.length > 0) return;
     const ideaId = addBox("text", { x: 80, y: 200 });
     useBoardStore.getState().updateBoxData(ideaId, {
-      content: "An AI-powered meal planning app that creates weekly menus based on dietary preferences and grocery sales.",
+      content:
+        "An AI-powered meal planning app that creates weekly menus based on dietary preferences and grocery sales.",
     });
     const researchId = addBox("insight", { x: 480, y: 200 });
     useBoardStore.getState().onConnect({
-      source: ideaId, target: researchId,
-      sourceHandle: null, targetHandle: null,
+      source: ideaId,
+      target: researchId,
+      sourceHandle: null,
+      targetHandle: null,
     } as any);
   }, [addBox, authLoading, user]);
 
-  const handleAddBox = (type: BoxType) => { addBox(type); };
+  const handleAddBox = (type: BoxType) => {
+    addBox(type);
+  };
 
   // Stable callbacks for the memoized <Header> — recreated only when the
   // underlying store actions change (they never do).
