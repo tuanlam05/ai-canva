@@ -289,7 +289,7 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
       />
       <div
         className={"box-node" + (selected ? " selected" : "")}
-        style={{ borderColor: meta.color }}
+        style={{ borderColor: hasError ? "#A71616" : meta.color }}
       >
         {/* Target handle (input) — AI boxes only (not input/utility boxes) */}
         {!isInputBox && !isUtility && (
@@ -302,8 +302,11 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
 
         {/* Header */}
         <div
-          className="flex items-center justify-between px-3 py-2 rounded-t-[10px]"
-          style={{ backgroundColor: meta.color + "20" }}
+          className="flex items-center justify-between px-3 py-2 rounded-t-[10px] gap-1"
+          style={{
+            backgroundColor: meta.color + "20",
+            borderBottom: `1px solid ${hasError ? "#A71616" : meta.color}`,
+          }}
         >
           <div className="flex items-center gap-2 flex-1 min-w-0">
             <span className="text-base flex-shrink-0">{meta.icon}</span>
@@ -338,7 +341,7 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
                 {(data.title as string) || meta.label + " Box"}
               </span>
             )}
-            <span className="text-xs text-slate-400 flex-shrink-0">
+            <span className="text-xs text-slate-400 flex-shrink-0 ml-auto">
               {meta.label}
             </span>
           </div>
@@ -366,7 +369,7 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
           {/* Text context box — editable textarea */}
           {isText && (
             <textarea
-              className="nodrag nowheel w-full min-h-[100px] resize-y rounded-lg border border-slate-200 p-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-amber-300"
+              className="nodrag nowheel w-full min-h-[100px] resize-none h-full rounded-lg border border-slate-200 p-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-amber-300"
               placeholder="Write your idea here..."
               value={boxData.content}
               onChange={(e) =>
@@ -503,18 +506,27 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
                 </div>
               )}
               {hasError && !isRunning && (
-                <div className="rounded-lg border border-red-200 bg-red-50/40 p-3 space-y-1">
-                  <p className="text-sm font-medium text-red-600">{meta.errorTitle ?? "Something went wrong."}</p>
-                  <p className="text-xs text-slate-400">{meta.errorHint}</p>
-                  <p className="text-[11px] text-slate-400 font-mono" title={boxData.error}>{/* optional: raw error, truncated */}</p>
-                  <button onClick={() => runBox(id)} className="mt-2 text-xs border border-slate-300 rounded px-2.5 py-1 hover:bg-slate-100">
+                <div>
+                  <p className="text-[15px] font-inter text-[#892121]">
+                    {meta.errorTitle ?? "Something went wrong."}
+                  </p>
+                  <p className="text-[11px] font-inter text-[#B3B9C6]">{meta.errorHint}</p>
+                  <p
+                    className="text-[11px] text-slate-400 font-mono"
+                    title={boxData.error}
+                  >
+                    Error: {boxData.error}
+                  </p>
+                  <button
+                    onClick={() => runBox(id)}
+                    className="text-[11px] mt-2 border border-[#E4E4E4] rounded-md px-5 py-1 hover:bg-slate-100 text-[#575758] font-inter transition"
+                  >
                     Try again
                   </button>
                 </div>
               )}
 
-
-              {hasTextOutput &&
+              {hasTextOutput && !hasError &&
                 !isRunning &&
                 (boxType === "insight" ? (
                   <InsightWeaverOutput content={boxData.output} />
@@ -553,7 +565,7 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
         )}
 
         {/* Footer — AI boxes only */}
-        {!isInputBox && !isUtility && (
+        {!isInputBox && !isUtility && !hasError && (
           <div className="box-footer px-3 py-2 border-t border-slate-100 flex items-center gap-2">
             <button
               onClick={() => runBox(id)}

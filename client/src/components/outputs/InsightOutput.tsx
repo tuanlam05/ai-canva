@@ -84,7 +84,7 @@ export default function InsightWeaverOutput({
                   {theme.theme}
                 </span>
               </div>
-              <span className="text-xs text-slate-400 flex-shrink-0 ml-2 bg-slate-100 px-1.5 py-0.5 rounded-full">
+              <span className="text-xs text-blue-700 font-bold flex-shrink-0 ml-2 bg-slate-100 px-1.5 py-0.5 rounded-full">
                 {theme.evidence?.length ?? 0}
               </span>
             </button>
@@ -95,7 +95,7 @@ export default function InsightWeaverOutput({
                 {theme.evidence?.map((ev, j) => (
                   <div
                     key={j}
-                    className="text-xs text-slate-600 bg-slate-50 rounded-lg p-2 border-l-2 border-blue-300"
+                    className="text-xs text-slate-600 bg-slate-50 rounded-tr-lg rounded-br-lg p-2 border-l-4 border-blue-300"
                   >
                     <p className="italic">&ldquo;{ev.quote}&rdquo;</p>
                     <p className="text-slate-400 mt-1">— {ev.source}</p>
