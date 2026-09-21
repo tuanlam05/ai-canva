@@ -499,14 +499,20 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
               {isRunning && (
                 <div className="flex items-center gap-2 text-slate-400 text-sm py-4 justify-center">
                   <span className="animate-spin">⏳</span>
-                  <span>Generating...</span>
+                  <span>{meta.loadingText ?? "Generating..."}</span>
                 </div>
               )}
               {hasError && !isRunning && (
-                <div className="text-red-500 text-sm p-2 bg-red-50 rounded-lg">
-                  ⚠️ {boxData.error}
+                <div className="rounded-lg border border-red-200 bg-red-50/40 p-3 space-y-1">
+                  <p className="text-sm font-medium text-red-600">{meta.errorTitle ?? "Something went wrong."}</p>
+                  <p className="text-xs text-slate-400">{meta.errorHint}</p>
+                  <p className="text-[11px] text-slate-400 font-mono" title={boxData.error}>{/* optional: raw error, truncated */}</p>
+                  <button onClick={() => runBox(id)} className="mt-2 text-xs border border-slate-300 rounded px-2.5 py-1 hover:bg-slate-100">
+                    Try again
+                  </button>
                 </div>
               )}
+
 
               {hasTextOutput &&
                 !isRunning &&
