@@ -823,6 +823,14 @@ export const useBoardStore = create<BoardState>()(
           id,
         );
 
+        if (Object.keys(namedInputs).length === 0) {
+          get().updateBoxData(id, {
+            status: "error",
+            error: "This box needs at least one attached context box.",
+          });
+          return;
+        }
+
         // Set running state
         get().setBoxStatus(id, "running");
 
