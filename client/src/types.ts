@@ -136,6 +136,9 @@ export interface BoxTypeMeta {
   color: string;
   description: string;
   hasAI: boolean;
+  loadingText?: string;
+  errorTitle?: string;
+  errorHint?: string;
   category: BoxCategory;
   /** Role tags used to filter the palette per persona (labels, not permissions). */
   roles: BoxRole[];
@@ -167,6 +170,9 @@ export const BOX_TYPES: Record<BoxType, BoxTypeMeta> = {
     description:
       "Extracts themes and pain points from research transcripts, with verified quotes, sources, and sentiment.",
     hasAI: true,
+    loadingText: "Reading transcripts for themes...",
+    errorTitle: "Couldn't extract themes.",
+    errorHint: "No themes were produced. The source transcript is unchanged.",
     category: "worker",
     roles: ["everyone"],
     defaultPrompt:
@@ -183,6 +189,9 @@ export const BOX_TYPES: Record<BoxType, BoxTypeMeta> = {
     description:
       "Maps grounded themes onto journey stages — supplied by the user or inferred — preserving sentiment and verbatim evidence.",
     hasAI: true,
+    loadingText: "Mapping themes into journey stages...",
+    errorTitle: "Couldn't build the journey map.",
+    errorHint: "No stages were produced. Themes from the previous box are unchanged.",
     category: "worker",
     roles: ["everyone"],
     defaultPrompt:
@@ -198,6 +207,9 @@ export const BOX_TYPES: Record<BoxType, BoxTypeMeta> = {
     color: "#ef4444",
     description: "Review patient safety risks.",
     hasAI: true,
+    loadingText: "Reviewing journey stages for safety concerns...",
+    errorTitle: "Couldn't complete the safety review.",
+    errorHint: "No flags were produced. Nothing has been approved or dismissed.",
     category: "worker",
     roles: ["everyone"],
     defaultPrompt: "placeholder",
@@ -211,6 +223,9 @@ export const BOX_TYPES: Record<BoxType, BoxTypeMeta> = {
     color: "#84cc16",
     description: "Generate a step-by-step procedure for a UX task.",
     hasAI: true,
+    loadingText: "Preparing guidance...",
+    errorTitle: "Couldn't generate guidance.",
+    errorHint: "Safety review results are unaffected.",
     category: "worker",
     roles: ["everyone"],
     defaultPrompt: "placeholder",
