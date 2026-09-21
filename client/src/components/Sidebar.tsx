@@ -4,6 +4,7 @@ import { useUserBoxesStore } from "../store/userBoxesStore.js";
 import { BOX_TYPES } from "../types.js";
 import type { BoxType, BoxCategory, BoxRole } from "../types.js";
 import CustomBoxModal from "./CustomBoxModal.js";
+import { useReactFlow } from "@xyflow/react";
 
 interface SidebarProps {
   open: boolean;
@@ -39,13 +40,23 @@ export default function Sidebar({ open, onToggle }: SidebarProps) {
   const removeCustomDef = useUserBoxesStore((s) => s.remove);
   const [showCustomModal, setShowCustomModal] = useState(false);
 
+  const { screenToFlowPosition } = useReactFlow();
+
   const [role, setRole] = useState<"all" | BoxRole>(() => {
-    const stored = typeof localStorage !== "undefined" ? localStorage.getItem(ROLE_STORAGE_KEY) : null;
+    const stored =
+      typeof localStorage !== "undefined"
+        ? localStorage.getItem(ROLE_STORAGE_KEY)
+        : null;
     return ROLES.includes(stored as BoxRole) ? (stored as BoxRole) : "all";
   });
 
   const handleAdd = (type: BoxType) => {
-    addBox(type);
+    const position = screenToFlowPosition({
+      x: window.innerWidth / 2,
+      y: window.innerHeight / 2,
+    });
+
+    addBox(type, position);
   };
 
   const selectRole = (next: "all" | BoxRole) => {
@@ -58,12 +69,15 @@ export default function Sidebar({ open, onToggle }: SidebarProps) {
 
   /** True when a box should appear under the active role filter.
    *  `everyone` boxes are shared scaffolding and show in every view. */
-  const boxVisible = (meta: typeof BOX_TYPES[BoxType]) =>
-    role === "all" || meta.roles.includes("everyone") || meta.roles.includes(role);
+  const boxVisible = (meta: (typeof BOX_TYPES)[BoxType]) =>
+    role === "all" ||
+    meta.roles.includes("everyone") ||
+    meta.roles.includes(role);
 
   const boxesByCategory = (cat: BoxCategory) =>
-    (Object.entries(BOX_TYPES) as [BoxType, typeof BOX_TYPES[BoxType]][])
-      .filter(([, meta]) => meta.category === cat && boxVisible(meta));
+    (
+      Object.entries(BOX_TYPES) as [BoxType, (typeof BOX_TYPES)[BoxType]][]
+    ).filter(([, meta]) => meta.category === cat && boxVisible(meta));
 
   return (
     <>
@@ -89,7 +103,9 @@ export default function Sidebar({ open, onToggle }: SidebarProps) {
       >
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 flex-shrink-0">
-          <span className="text-[13px] font-semibold text-slate-700">Add Box</span>
+          <span className="text-[13px] font-semibold text-slate-700">
+            Add Box
+          </span>
           <button
             onClick={onToggle}
             className="text-slate-400 hover:text-slate-600 transition w-6 h-6 flex items-center justify-center rounded hover:bg-slate-100"
@@ -125,7 +141,9 @@ export default function Sidebar({ open, onToggle }: SidebarProps) {
             // The static "custom" meta is a runtime fallback, never a
             // palette item — the Custom section lists the user's saved
             // definitions instead.
-            const boxes = boxesByCategory(section.category).filter(([t]) => t !== "custom");
+            const boxes = boxesByCategory(section.category).filter(
+              ([t]) => t !== "custom",
+            );
             const isCustom = section.category === "custom";
             if (!isCustom && boxes.length === 0) return null;
             return (
@@ -185,7 +203,8 @@ export default function Sidebar({ open, onToggle }: SidebarProps) {
                       ))}
                       {customDefs.length === 0 && (
                         <p className="text-[11px] text-slate-400 px-1 leading-snug">
-                          Create your own reusable AI boxes — saved to your profile.
+                          Create your own reusable AI boxes — saved to your
+                          profile.
                         </p>
                       )}
                       <button
@@ -210,7 +229,9 @@ export default function Sidebar({ open, onToggle }: SidebarProps) {
       </div>
 
       {/* Create Custom Box dialog */}
-      {showCustomModal && <CustomBoxModal onClose={() => setShowCustomModal(false)} />}
+      {showCustomModal && (
+        <CustomBoxModal onClose={() => setShowCustomModal(false)} />
+      )}
     </>
   );
 }
