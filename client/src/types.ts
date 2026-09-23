@@ -92,6 +92,8 @@ export interface BoxData {
   outputImage?: string;
   /** For Documents boxes: the uploaded files + their extracted text. */
   documents?: BoxDocument[];
+  /* Researcher decisions keyed by output item id. */
+  approvals?: Record<string, ItemApproval>;
   /** Token usage from the most recent LLM call for this box (text AI boxes). */
   tokens?: {
     promptTokens: number;
@@ -119,6 +121,25 @@ export interface Theme {
   theme: string;
   description: string;
   evidence: Evidence[];
+}
+
+/* One safety flag produced by the Patient Safety Reviewer. */
+export interface Risk {
+  id: string;
+  category: string;
+  summary: string;
+  stage: string;
+  reason: string;
+  theme_id: string;
+  theme: string;
+  evidence: Evidence[];
+}
+
+/* A researcher's decision on one output item. */
+export interface ItemApproval {
+  status: "approved" | "dismissed";
+  by: string;
+  at: number;
 }
 
 /** Metadata for each box type. */
@@ -216,15 +237,18 @@ export const BOX_TYPES: Record<BoxType, BoxTypeMeta> = {
     label: "Patient Safety Reviewer",
     icon: "🩺",
     color: "#ef4444",
-    description: "Review patient safety risks.",
+    description:
+      "Flags patient-safety concerns in the journey, tracing each back to a stage, theme, and verbatim quote.",
     hasAI: true,
     loadingText: "Reviewing journey stages for safety concerns...",
     errorTitle: "Couldn't complete the safety review.",
     errorHint: "No flags were produced. Nothing has been approved or dismissed.",
     category: "worker",
     roles: ["everyone"],
-    defaultPrompt: "placeholder",
-    defaultSystemPrompt: "placeholder",
+    defaultPrompt:
+      "Review the journey below for patient-safety concerns. Flag only what the evidence supports - do not speculate about harms with no basis in the quotes. Copy ids, theme names, and quotes exactly as given.\n\nJourney:\n{{inputs}}",
+    defaultSystemPrompt:
+      'You are a patient-safety reviewer for a healthcare product team. You read a user journey built from research evidence and flag the points where a patient could come to harm.\n\nFLAGGING\n- Flag a concern only when the evidence in the journey supports it. Do not invent harms, and do not flag something merely because a user was annoyed or confused with no safety consequence.\n- Each flag names exactly one stage from the journey, taken verbatim from "stage_name".\n- Each flag traces to exactly one theme: copy its "theme_id" and "theme" unchanged.\n- Copy quotes and sources exactly as given. Never paraphrase or invent them.\n- Classify each flag into one category: "Communication Risk", "Continuity of Care Risk", "Medication Risk", "Access Risk", or "Data Accuracy Risk".\n- Give each flag a unique id in the format "risk-1", "risk-2", numbered sequentially.\n- List every stage you reviewed and found no concern in "clear_stages", using the stage names verbatim.\n\nOUTPUT\nReturn only JSON in this structure - no prose before or after:\n\n{\n  "risks": [\n    {\n      "id": "risk-1",\n      "category": "one of the categories above",\n      "summary": "short summary of the concern",\n      "stage": "stage_name from the journey, unchanged",\n      "reason": "one or two sentences on why this was flagged",\n      "theme_id": "theme id from the journey, unchanged",\n      "theme": "theme name, unchanged",\n      "evidence": [\n        { "quote": "exact verbatim quote", "source": "participant/document name" }\n      ]\n    }\n  ],\n  "clear_stages": ["stage names with no concerns"]\n}',
     defaultWidth: 360,
     defaultHeight: 380,
   },
