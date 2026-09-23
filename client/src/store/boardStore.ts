@@ -41,7 +41,7 @@ import {
   recordTokenUsage,
   type BoardDoc,
 } from "../lib/firestore.js";
-import type { PresenceUser } from "../types.js";
+import type { PresenceUser, Theme } from "../types.js";
 import { useAuthStore } from "./authStore.js";
 import { getUserEmail } from "../lib/admin.js";
 import { useTokenStore } from "./tokenStore.js";
@@ -223,6 +223,7 @@ interface BoardState {
   setBoxName: (id: string, name: string) => void;
   deleteBox: (id: string) => void;
   runBox: (id: string) => Promise<void>;
+  rerunTheme: (id: string, themeIndex: number) => Promise<void>;
   /** Programmatic edge creation — used by the Agent box to wire the boxes it
    *  makes. Dedupes and rejects self-connections like a manual connect. */
   connectBoxes: (sourceId: string, targetId: string) => boolean;
@@ -850,6 +851,69 @@ export const useBoardStore = create<BoardState>()(
           });
         } catch (err: any) {
           get().setBoxStatus(id, "error", err.message || "Generation failed");
+        }
+      },
+
+      rerunTheme: async (id: string, themeIndex: number) => {
+        const state = get();
+        const node = state.nodes.find((n) => n.id === id);
+        const data = state.boxData[id];
+        if (!node || !data) return;
+
+        const { namedInputs } = collectInputs(
+          state.nodes,
+          state.edges,
+          state.boxData,
+          id,
+        );
+        if (Object.keys(namedInputs).length === 0) {
+          get().updateBoxData(id, {
+            status: "error",
+            error: "This box needs at least one attached context box.",
+          });
+          return;
+        }
+
+        const parsed = JSON.parse(data.output);
+        const currentThemes = parsed.themes as Theme[];
+        const rejectedTheme = currentThemes[themeIndex];
+        const otherThemes = currentThemes.filter((_, i) => i !== themeIndex);
+
+        const rerunInstruction = `Re-run theme extraction on the research material below, but exclude "${rejectedTheme.theme}" (rejected as not useful). Generate ONE alternative theme from the remaining evidence that is not already covered by: ${otherThemes.map((t) => t.theme).join(", ")}. Follow the same grounding rules — only include a theme if there is direct verbatim quote evidence for it. If no distinct alternative theme exists, return { "themes": [] }.`;
+
+        // Reuse the box's existing prompt template, but prepend the exclusion instruction
+        const filledPrompt =
+          rerunInstruction +
+          "\n\n" +
+          fillPromptTemplate(data.prompt, namedInputs);
+
+        // get().setBoxStatus(id, "running");
+
+        try {
+          const result = await generateTextForBox(id, {
+            systemPrompt: data.systemPrompt,
+            userPrompt: filledPrompt,
+            boxType: "insight",
+          });
+
+          const newThemeData = JSON.parse(result.content);
+          const newTheme = newThemeData.themes?.[0];
+
+          const updatedThemes = newTheme
+            ? [
+                ...otherThemes.slice(0, themeIndex),
+                newTheme,
+                ...otherThemes.slice(themeIndex),
+              ]
+            : otherThemes;
+
+          get().updateBoxData(id, {
+            output: JSON.stringify({ themes: updatedThemes }),
+            status: "done",
+            error: undefined,
+          });
+        } catch (err: any) {
+          get().setBoxStatus(id, "error", err.message || "Rerun failed");
         }
       },
     }),
