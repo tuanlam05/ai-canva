@@ -45,6 +45,7 @@ import type { PresenceUser, Theme } from "../types.js";
 import { useAuthStore } from "./authStore.js";
 import { getUserEmail } from "../lib/admin.js";
 import { useTokenStore } from "./tokenStore.js";
+import { filterApproved } from "../lib/approvals.js";
 
 function makeId(): string {
   return `box-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
@@ -142,9 +143,11 @@ function collectInputs(
       // Gather text output with the source box name. Documents boxes
       // derive their output from the extracted file text (labeled by
       // filename) — see lib/documents.ts.
-      const textOutput = sourceData.documents?.length
+      const sourceType = (sourceNode?.data?.boxType || sourceNode?.type) as string;
+      const rawOutput = sourceData.documents?.length
         ? buildDocumentsOutput(sourceData.documents)
         : getBoxOutput(sourceData.output, sourceData.content);
+      const textOutput = filterApproved(sourceType, rawOutput, sourceData.approvals);
       if (textOutput) {
         namedInputs.push({
           name: (sourceNode?.data?.title as string) || "Unnamed",
@@ -224,6 +227,15 @@ interface BoardState {
   deleteBox: (id: string) => void;
   runBox: (id: string) => Promise<void>;
   rerunTheme: (id: string, themeIndex: number) => Promise<void>;
+  /**
+   * Records the researcher's decision on one output item (safety risks).
+   * Dismissed items are withheld from downstream boxes.
+   */
+  setApproval: (
+    id: string,
+    itemId: string,
+    status: "approved" | "dismissed",
+  ) => void;
   /** Programmatic edge creation — used by the Agent box to wire the boxes it
    *  makes. Dedupes and rejects self-connections like a manual connect. */
   connectBoxes: (sourceId: string, targetId: string) => boolean;
@@ -410,6 +422,16 @@ export const useBoardStore = create<BoardState>()(
           },
         });
         scheduleSave();
+      },
+
+      setApproval: (id, itemId, status) => {
+        const current = get().boxData[id]?.approvals || {};
+        get().updateBoxData(id, {
+          approvals: {
+            ...current,
+            [itemId]: { status, by: actorName(), at: Date.now() },
+          },
+        });
       },
 
       setBoxName: (id, name) => {
@@ -848,6 +870,9 @@ export const useBoardStore = create<BoardState>()(
             output: result.content,
             status: "done",
             error: undefined,
+            // A rerun produces new items with new ids, so decisions made on
+            // the previous output no longer refer to anything.
+            approvals: undefined,
           });
         } catch (err: any) {
           get().setBoxStatus(id, "error", err.message || "Generation failed");
