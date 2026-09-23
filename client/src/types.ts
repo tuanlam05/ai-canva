@@ -110,6 +110,17 @@ export interface BoxData {
   checklistItems?: ChecklistItem[];
 }
 
+export interface Evidence {
+  quote: string;
+  source: string;
+}
+
+export interface Theme {
+  theme: string;
+  description: string;
+  evidence: Evidence[];
+}
+
 /** Metadata for each box type. */
 export type BoxCategory =
   | "input"
