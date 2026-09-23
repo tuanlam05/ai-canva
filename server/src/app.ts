@@ -45,7 +45,7 @@ export function createApp(): express.Express {
 
       const result = await generateContent(
         systemPrompt || "You are a helpful assistant.",
-        userPrompt
+        userPrompt,
       );
 
       res.json({
@@ -58,7 +58,7 @@ export function createApp(): express.Express {
         },
       });
     } catch (err: any) {
-      console.error("[/api/generate] Error:", err.message);
+      console.error("[/api/generate] Error:", err.message, err.cause || "");
       res.status(500).json({
         error: err.message || "Failed to generate content",
       });
@@ -84,7 +84,8 @@ export function createApp(): express.Express {
    */
   app.get("/api/admin/stats", (_req, res) => {
     res.status(501).json({
-      error: "Admin stats are only available in the Firebase Cloud Function (production).",
+      error:
+        "Admin stats are only available in the Firebase Cloud Function (production).",
     });
   });
 
@@ -94,7 +95,8 @@ export function createApp(): express.Express {
    */
   app.post("/api/admin/roles", (_req, res) => {
     res.status(501).json({
-      error: "Role management is only available in the Firebase Cloud Function (production).",
+      error:
+        "Role management is only available in the Firebase Cloud Function (production).",
     });
   });
 
@@ -107,7 +109,8 @@ export function createApp(): express.Express {
    */
   app.post("/api/workshop/join", async (req, res) => {
     const PROXY_TARGET =
-      process.env.WORKSHOP_PROXY_URL || "https://carbondocs.web.app/api/workshop/join";
+      process.env.WORKSHOP_PROXY_URL ||
+      "https://carbondocs.web.app/api/workshop/join";
     try {
       const r = await fetch(PROXY_TARGET, {
         method: "POST",
@@ -120,7 +123,10 @@ export function createApp(): express.Express {
       console.error("[/api/workshop/join] proxy error:", e?.message);
       res
         .status(502)
-        .json({ error: "Workshop join is unavailable — the production function could not be reached." });
+        .json({
+          error:
+            "Workshop join is unavailable — the production function could not be reached.",
+        });
     }
   });
 

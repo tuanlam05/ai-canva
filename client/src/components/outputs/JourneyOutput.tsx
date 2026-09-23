@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 
 interface Evidence {
   quote: string;
@@ -44,9 +45,8 @@ const SENTIMENT_STYLES = {
 
 function styles(sentiment: string | undefined) {
   return (
-    SENTIMENT_STYLES[
-      sentiment as keyof typeof SENTIMENT_STYLES
-    ] ?? SENTIMENT_STYLES.neutral
+    SENTIMENT_STYLES[sentiment as keyof typeof SENTIMENT_STYLES] ??
+    SENTIMENT_STYLES.neutral
   );
 }
 
@@ -100,12 +100,15 @@ export default function JourneyMapperOutput({
 
   return (
     <div className="space-y-2 nowheel">
+      <p className="text-[#8B93A5] font-inter text-sm ms-1">
+        {stages.length} stage{stages.length > 1 && "s"}
+      </p>
       {stages.map((stage, i) => {
         const isOpen = expanded.has(i);
         const issues = stage.issues ?? [];
 
         const hasNegative = issues.some(
-          (issue) => issue.sentiment === "negative"
+          (issue) => issue.sentiment === "negative",
         );
 
         return (
@@ -143,56 +146,66 @@ export default function JourneyMapperOutput({
               </div>
             </button>
 
-            {isOpen && (
-              <div className="px-3 pb-3 pt-1 border-t border-slate-100 space-y-2">
-                <p className="text-xs text-slate-500">
-                  {stage.stage_description}
-                </p>
+            <AnimatePresence>
+              {isOpen && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: "auto", opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.2 }}
+                  className="overflow-hidden"
+                >
+                  <div className="px-3 pb-3 pt-1 border-t border-slate-100 space-y-2">
+                    <p className="text-xs text-slate-500">
+                      {stage.stage_description}
+                    </p>
 
-                {issues.length === 0 && (
-                  <div className="text-xs text-slate-400 bg-slate-50 rounded-lg p-2 text-center">
-                    No research evidence found for this stage.
-                  </div>
-                )}
+                    {issues.length === 0 && (
+                      <div className="text-xs text-slate-400 bg-slate-50 rounded-lg p-2 text-center">
+                        No research evidence found for this stage.
+                      </div>
+                    )}
 
-                {issues.map((issue, j) => {
-                  const s = styles(issue.sentiment);
+                    {issues.map((issue, j) => {
+                      const s = styles(issue.sentiment);
 
-                  return (
-                    <div
-                      key={issue.theme_id || j}
-                      className={"border rounded-lg p-2 space-y-2 " + s.card}
-                    >
-                      <p className="text-xs font-medium text-slate-700">
-                        {s.icon} {issue.theme}
-                      </p>
-
-                      <p className="text-xs text-slate-500">
-                        {issue.description}
-                      </p>
-
-                      {issue.evidence?.map((ev, k) => (
+                      return (
                         <div
-                          key={k}
+                          key={issue.theme_id || j}
                           className={
-                            "text-xs text-slate-600 rounded-tr-lg rounded-br-lg p-2 border-l-4 " +
-                            s.quote
+                            "border rounded-lg p-2 space-y-2 " + s.card
                           }
                         >
-                          <p className="italic">
-                            &ldquo;{ev.quote}&rdquo;
+                          <p className="text-xs font-medium text-slate-700">
+                            {s.icon} {issue.theme}
                           </p>
 
-                          <p className="text-slate-400 mt-1">
-                            — {ev.source}
+                          <p className="text-xs text-slate-500">
+                            {issue.description}
                           </p>
+
+                          {issue.evidence?.map((ev, k) => (
+                            <div
+                              key={k}
+                              className={
+                                "text-xs text-slate-600 rounded-tr-lg rounded-br-lg p-2 border-l-4 " +
+                                s.quote
+                              }
+                            >
+                              <p className="italic">&ldquo;{ev.quote}&rdquo;</p>
+
+                              <p className="text-slate-400 mt-1">
+                                — {ev.source}
+                              </p>
+                            </div>
+                          ))}
                         </div>
-                      ))}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
+                      );
+                    })}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         );
       })}

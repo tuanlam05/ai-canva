@@ -529,7 +529,7 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
               {hasTextOutput && !hasError &&
                 !isRunning &&
                 (boxType === "insight" ? (
-                  <InsightWeaverOutput content={boxData.output} />
+                  <InsightWeaverOutput content={boxData.output} boxId={id} />
                 ) : boxType === "journey" ? (
                   <JourneyMapperOutput content={boxData.output} />
                 ) : (

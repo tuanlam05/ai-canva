@@ -18,6 +18,7 @@
     "@uiw/react-codemirror": "^4.25.11",
     "@xyflow/react": "^12.3.5",
     "firebase": "^12.17.1",
+    "framer-motion": "^13.4.1",
     "mammoth": "^1.12.2",
     "pdfjs-dist": "^4.10.38",
     "react": "^19.0.0",
