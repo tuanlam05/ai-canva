@@ -15,7 +15,6 @@ import { addBoardMember } from "./lib/firestore.js";
 import { signInWithWorkshopCode } from "./lib/auth.js";
 import { doc, getDoc, setDoc, getFirestore } from "firebase/firestore";
 import { db } from "./lib/firebase.js";
-import { useUserBoxesStore } from "./store/userBoxesStore.js";
 import { useBoardStore } from "./store/boardStore.js";
 import { useAuthStore } from "./store/authStore.js";
 import { useTokenStore } from "./store/tokenStore.js";
@@ -83,10 +82,8 @@ export default function App() {
       setIsAdminUser(false);
       setAdminView(false);
       useTokenStore.getState().reset();
-      useUserBoxesStore.setState({ defs: [] });
       return;
     }
-    useUserBoxesStore.getState().load();
     updateUserProfile(user).catch(() => {});
     isAdmin(user.uid).then(setIsAdminUser).catch(() => {});
     isFacilitator(user.uid).then(setIsFacilitatorUser).catch(() => {});

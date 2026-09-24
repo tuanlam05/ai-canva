@@ -28,7 +28,6 @@ const nodeTypes = {
   label: BoxNode,
   checklist: BoxNode,
   area: AreaNode,
-  custom: BoxNode,
 };
 
 export default function Canvas() {
@@ -251,9 +250,6 @@ export default function Canvas() {
           if (node.type === "area") {
             // Areas are near-white on the minimap — use their border shade.
             return (node.data as any)?.border || "#cbd5e1";
-          }
-          if (node.type === "custom") {
-            return (node.data as any)?.customColor || "#6366f1";
           }
           return colors[node.type || ""] || "#94a3b8";
         }}

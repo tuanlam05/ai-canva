@@ -23,18 +23,7 @@ import CoachOutput from "./outputs/CoachOutput.js";
 
 function BoxNode({ id, data, selected, type }: NodeProps) {
   const boxType = (data.boxType || type) as BoxType;
-  // Custom boxes: the base meta is a fallback — instances carry their own
-  // icon/color/label copied from the user's saved definition (node.data).
-  const baseMeta = BOX_TYPES[boxType];
-  const meta =
-    boxType === "custom"
-      ? {
-          ...baseMeta,
-          icon: (data.customIcon as string) || baseMeta.icon,
-          color: (data.customColor as string) || baseMeta.color,
-          label: (data.customLabel as string) || baseMeta.label,
-        }
-      : baseMeta;
+  const meta = BOX_TYPES[boxType];
   const boxData = useBoardStore((s) => s.boxData[id]);
   const updateBoxData = useBoardStore((s) => s.updateBoxData);
   const deleteBox = useBoardStore((s) => s.deleteBox);

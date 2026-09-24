@@ -19,7 +19,6 @@ import {
   setDoc as setDocPresence,
 } from "firebase/firestore";
 import type { PresenceUser } from "../types.js";
-import type { CustomBoxDef } from "./customBoxes.js";
 
 export interface BoardDoc {
   id: string;
@@ -343,31 +342,5 @@ export async function fetchUserTokenTotal(userId: string): Promise<number> {
     console.warn("[tokenUsage] Could not fetch total:", err);
     return 0;
   }
-}
-
-// === Custom box templates (users/{uid}/boxes/{boxId}) ===
-
-/** Lists the signed-in user's saved custom box definitions. */
-export async function listUserBoxes(userId: string): Promise<CustomBoxDef[]> {
-  const q = query(
-    collection(db, "users", userId, "boxes"),
-    orderBy("createdAt", "asc")
-  );
-  const snap = await getDocs(q);
-  return snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<CustomBoxDef, "id">) }));
-}
-
-/** Saves (creates) a custom box definition in the user's profile. */
-export async function saveUserBox(
-  userId: string,
-  def: Omit<CustomBoxDef, "id">
-): Promise<string> {
-  const ref = await addDoc(collection(db, "users", userId, "boxes"), def);
-  return ref.id;
-}
-
-/** Deletes a saved custom box definition (existing board boxes are unaffected). */
-export async function deleteUserBox(userId: string, boxId: string): Promise<void> {
-  await deleteDoc(doc(db, "users", userId, "boxes", boxId));
 }
 
