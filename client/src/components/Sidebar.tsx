@@ -1,7 +1,6 @@
-import { useState } from "react";
 import { useBoardStore } from "../store/boardStore.js";
 import { BOX_TYPES } from "../types.js";
-import type { BoxType, BoxCategory, BoxRole } from "../types.js";
+import type { BoxType, BoxCategory } from "../types.js";
 import { useReactFlow } from "@xyflow/react";
 
 interface SidebarProps {
@@ -16,32 +15,10 @@ const SECTIONS: { title: string; category: BoxCategory }[] = [
   { title: "Collaboration", category: "collab" },
 ];
 
-/** Role filters shown as a dropdown at the top of the palette. */
-const ROLE_STORAGE_KEY = "ai-canva:sidebar-role";
-
-/** The selectable role profiles (must stay in sync with the <option> list). */
-const ROLES: BoxRole[] = ["designer", "developer", "product", "sdlc"];
-
-const ROLE_LABELS: Record<BoxRole, string> = {
-  everyone: "Everyone",
-  designer: "🎨 Designer",
-  developer: "💻 Developer",
-  product: "📊 Product",
-  sdlc: "🔁 SDLC",
-};
-
 export default function Sidebar({ open, onToggle }: SidebarProps) {
   const addBox = useBoardStore((s) => s.addBox);
 
   const { screenToFlowPosition } = useReactFlow();
-
-  const [role, setRole] = useState<"all" | BoxRole>(() => {
-    const stored =
-      typeof localStorage !== "undefined"
-        ? localStorage.getItem(ROLE_STORAGE_KEY)
-        : null;
-    return ROLES.includes(stored as BoxRole) ? (stored as BoxRole) : "all";
-  });
 
   const handleAdd = (type: BoxType) => {
     const position = screenToFlowPosition({
@@ -52,25 +29,10 @@ export default function Sidebar({ open, onToggle }: SidebarProps) {
     addBox(type, position);
   };
 
-  const selectRole = (next: "all" | BoxRole) => {
-    setRole(next);
-    if (typeof localStorage !== "undefined") {
-      if (next === "all") localStorage.removeItem(ROLE_STORAGE_KEY);
-      else localStorage.setItem(ROLE_STORAGE_KEY, next);
-    }
-  };
-
-  /** True when a box should appear under the active role filter.
-   *  `everyone` boxes are shared scaffolding and show in every view. */
-  const boxVisible = (meta: (typeof BOX_TYPES)[BoxType]) =>
-    role === "all" ||
-    meta.roles.includes("everyone") ||
-    meta.roles.includes(role);
-
   const boxesByCategory = (cat: BoxCategory) =>
     (
       Object.entries(BOX_TYPES) as [BoxType, (typeof BOX_TYPES)[BoxType]][]
-    ).filter(([, meta]) => meta.category === cat && boxVisible(meta));
+    ).filter(([, meta]) => meta.category === cat);
 
   return (
     <>
