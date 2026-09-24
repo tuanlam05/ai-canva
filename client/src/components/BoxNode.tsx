@@ -19,6 +19,7 @@ import type { BoxDocument } from "../types.js";
 import InsightWeaverOutput from "./outputs/InsightOutput.js";
 import JourneyMapperOutput from "./outputs/JourneyOutput.js";
 import SafetyReviewerOutput from "./outputs/SafetyOutputs.js";
+import CoachOutput from "./outputs/CoachOutput.js";
 
 function BoxNode({ id, data, selected, type }: NodeProps) {
   const boxType = (data.boxType || type) as BoxType;
@@ -535,6 +536,8 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
                   <JourneyMapperOutput content={boxData.output} />
                 ) : boxType === "safety" ? (
                   <SafetyReviewerOutput content={boxData.output} boxId={id} />
+                ) : boxType === "coach" ? (
+                  <CoachOutput content={boxData.output} boxId={id} />
                 ) : (
                   <div className="markdown-output text-slate-700 text-sm">
                     <ReactMarkdown>{boxData.output}</ReactMarkdown>
