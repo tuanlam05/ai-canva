@@ -24,7 +24,6 @@ import { fillPromptTemplate, getBoxOutput } from "../lib/prompts.js";
 
 import { buildDocumentsOutput } from "../lib/documents.js";
 import { cleanBoxDataForFirestore } from "../lib/serialization.js";
-import type { CustomBoxDef } from "../lib/customBoxes.js";
 import {
   saveBoard,
   loadBoard,
@@ -218,10 +217,6 @@ interface BoardState {
     fill: string,
     border: string,
   ) => string;
-  addCustomBox: (
-    def: CustomBoxDef,
-    position?: { x: number; y: number },
-  ) => string;
   setAreaColor: (id: string, fill: string, border: string) => void;
   setBoxName: (id: string, name: string) => void;
   deleteBox: (id: string) => void;
@@ -368,48 +363,6 @@ export const useBoardStore = create<BoardState>()(
           ),
         });
         scheduleSave();
-      },
-
-      // Custom box: instantiate a saved template as a `custom`-type AI box.
-      // The definition's prompt/systemPrompt/icon/color are COPIED onto the
-      // instance, so boards stay self-contained and deleting the saved
-      // definition later never affects boxes already on boards.
-      addCustomBox: (def, position) => {
-        const id = makeId();
-        const meta = BOX_TYPES.custom;
-        const node: Node = {
-          id,
-          type: "custom",
-          position: position || {
-            x: 200 + Math.random() * 200,
-            y: 150 + Math.random() * 100,
-          },
-          data: {
-            boxType: "custom",
-            title: def.label + " Box",
-            customLabel: def.label,
-            customIcon: def.icon,
-            customColor: def.color,
-          },
-          style: { width: meta.defaultWidth, height: meta.defaultHeight },
-        };
-        set({
-          nodes: [...get().nodes, node],
-          boxData: {
-            ...get().boxData,
-            [id]: {
-              content: "",
-              prompt: def.prompt,
-              systemPrompt: def.systemPrompt,
-              output: "",
-              status: "idle" as BoxStatus,
-              imageData: undefined,
-              outputImage: undefined,
-            },
-          },
-        });
-        scheduleSave();
-        return id;
       },
 
       updateBoxData: (id, patch) => {

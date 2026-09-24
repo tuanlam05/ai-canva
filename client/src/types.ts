@@ -5,7 +5,6 @@ export type BoxType =
   | "journey"
   | "safety"
   | "coach"
-  | "custom"
   | "checklist"
   | "label"
   | "note";
@@ -147,20 +146,7 @@ export type BoxCategory =
   | "input"
   | "worker"
   | "collab"
-  | "companion"
-  | "custom"
-  | "sdlc";
-
-/**
- * A role/persona a box is aimed at. Boxes tagged `"everyone"` appear in every
- * role view (they are shared pipeline scaffolding). See `docs/BOX_TYPES.md`.
- */
-export type BoxRole =
-  | "everyone"
-  | "designer"
-  | "developer"
-  | "product"
-  | "sdlc";
+  | "companion";
 
 export interface BoxTypeMeta {
   label: string;
@@ -172,8 +158,6 @@ export interface BoxTypeMeta {
   errorTitle?: string;
   errorHint?: string;
   category: BoxCategory;
-  /** Role tags used to filter the palette per persona (labels, not permissions). */
-  roles: BoxRole[];
   defaultPrompt: string;
   defaultSystemPrompt: string;
   defaultWidth: number;
@@ -189,7 +173,6 @@ export const BOX_TYPES: Record<BoxType, BoxTypeMeta> = {
       "Write down simple context for your research project, in text form.",
     hasAI: false,
     category: "input",
-    roles: ["everyone"],
     defaultPrompt: "",
     defaultSystemPrompt: "",
     defaultWidth: 320,
@@ -206,7 +189,6 @@ export const BOX_TYPES: Record<BoxType, BoxTypeMeta> = {
     errorTitle: "Couldn't extract themes.",
     errorHint: "No themes were produced. The source transcript is unchanged.",
     category: "worker",
-    roles: ["everyone"],
     defaultPrompt:
       "Identify recurring themes in the following research material — this includes pain points, points of confusion, AND things that work well or receive positive feedback. Aim for 5 to 8 distinct themes, but let the evidence decide the exact number: if the material only clearly supports fewer than 5 well-evidenced themes, return fewer — do not invent or split themes just to reach 5. If there are more than 8 genuinely distinct issues, merge closely related ones under a single broader theme rather than exceeding 8. Each theme must be genuinely distinct — do not create two themes that describe the same underlying pattern with different wording. For each theme, provide a short description, classify its sentiment, and cite the exact participant(s) and verbatim quotes that support it. Only include themes with direct textual evidence — do not infer themes that aren't explicitly supported by quotes.\n\nResearch Material:\n{{inputs}}",
     defaultSystemPrompt:
@@ -226,7 +208,6 @@ export const BOX_TYPES: Record<BoxType, BoxTypeMeta> = {
     errorHint:
       "No stages were produced. Themes from the previous box are unchanged.",
     category: "worker",
-    roles: ["everyone"],
     defaultPrompt:
       "Map the themes below onto a user journey. If any input contains a list of journey stages, use exactly those stages in that order. Otherwise, derive a plausible generic sequence of stages a user would typically go through in this kind of app. Stay strictly grounded for the theme/evidence content itself — do not alter or embellish the ids, names, descriptions, sentiment, or quotes.\n\nInputs:\n{{inputs}}",
     defaultSystemPrompt:
@@ -246,13 +227,12 @@ export const BOX_TYPES: Record<BoxType, BoxTypeMeta> = {
     errorHint:
       "No flags were produced. Nothing has been approved or dismissed.",
     category: "worker",
-    roles: ["everyone"],
     defaultPrompt:
       "Review the journey below for patient-safety concerns. Flag only what the evidence supports - do not speculate about harms with no basis in the quotes. Copy ids, theme names, and quotes exactly as given.\n\nJourney:\n{{inputs}}",
     defaultSystemPrompt:
       'You are a patient-safety reviewer for a healthcare product team. You read a user journey built from research evidence and flag the points where a patient could come to harm.\n\nFLAGGING\n- Flag a concern only when the evidence in the journey supports it. Do not invent harms, and do not flag something merely because a user was annoyed or confused with no safety consequence.\n- Each flag names exactly one stage from the journey, taken verbatim from "stage_name".\n- Each flag traces to exactly one theme: copy its "theme_id" and "theme" unchanged.\n- Copy quotes and sources exactly as given. Never paraphrase or invent them.\n- Classify each flag into one category: "Communication Risk", "Continuity of Care Risk", "Medication Risk", "Access Risk", or "Data Accuracy Risk".\n- Give each flag a unique id in the format "risk-1", "risk-2", numbered sequentially.\n- List every stage you reviewed and found no concern in "clear_stages", using the stage names verbatim.\n\nOUTPUT\nReturn only JSON in this structure - no prose before or after:\n\n{\n  "risks": [\n    {\n      "id": "risk-1",\n      "category": "one of the categories above",\n      "summary": "short summary of the concern",\n      "stage": "stage_name from the journey, unchanged",\n      "reason": "one or two sentences on why this was flagged",\n      "theme_id": "theme id from the journey, unchanged",\n      "theme": "theme name, unchanged",\n      "evidence": [\n        { "quote": "exact verbatim quote", "source": "participant/document name" }\n      ]\n    }\n  ],\n  "clear_stages": ["stage names with no concerns"]\n}',
-    defaultWidth: 360,
-    defaultHeight: 380,
+    defaultWidth: 320,
+    defaultHeight: 320,
   },
   coach: {
     label: "UX Coach",
@@ -265,7 +245,6 @@ export const BOX_TYPES: Record<BoxType, BoxTypeMeta> = {
     errorTitle: "Couldn't generate guidance.",
     errorHint: "Safety review results are unaffected.",
     category: "worker",
-    roles: ["everyone"],
     defaultPrompt:
       "Based on the following flagged safety risks, provide practical guidance for each risk and identify what the research team should investigate next.\n\nFor guidance, create exactly one entry for every risk received. Copy each risk_id and stage unchanged from the input. Restate the concern in plain language, explain why it matters for the patient, and give concrete actions the UX team can take. Preserve researcher_confirmed exactly as provided in the input.\n\nAlso provide a separate research_next checklist containing the most useful research questions or evidence gaps. These questions may relate to one or multiple risks, or to a broader gap that is not tied to a single risk.\n\nDo not invent risks. Do not include quotes. The risk_id is the traceability link back to the original safety finding, so it must remain unchanged.\n\nRisks:\n{{inputs}}",
     defaultSystemPrompt:
@@ -281,7 +260,6 @@ export const BOX_TYPES: Record<BoxType, BoxTypeMeta> = {
       "Upload PDF, Word, or text files. Their extracted text becomes input for downstream boxes via {{inputs}}.",
     hasAI: false,
     category: "input",
-    roles: ["everyone"],
     defaultPrompt: "",
     defaultSystemPrompt: "",
     defaultWidth: 340,
@@ -295,7 +273,6 @@ export const BOX_TYPES: Record<BoxType, BoxTypeMeta> = {
       "A post-it style note for team communication. Everyone on the board sees it.",
     hasAI: false,
     category: "collab",
-    roles: ["everyone"],
     defaultPrompt: "",
     defaultSystemPrompt: "",
     defaultWidth: 260,
@@ -308,7 +285,6 @@ export const BOX_TYPES: Record<BoxType, BoxTypeMeta> = {
     description: "A simple colored text label to annotate areas of the board.",
     hasAI: false,
     category: "collab",
-    roles: ["everyone"],
     defaultPrompt: "",
     defaultSystemPrompt: "",
     defaultWidth: 200,
@@ -322,24 +298,10 @@ export const BOX_TYPES: Record<BoxType, BoxTypeMeta> = {
       "A shared team to-do list. Anyone can add, assign and tick off tasks — everyone sees the same list.",
     hasAI: false,
     category: "collab",
-    roles: ["everyone"],
     defaultPrompt: "",
     defaultSystemPrompt: "",
     defaultWidth: 320,
     defaultHeight: 340,
-  },
-  custom: {
-    label: "Custom",
-    icon: "✨",
-    color: "#6366f1",
-    description: "A reusable AI box you created (saved to your profile).",
-    hasAI: true,
-    category: "custom",
-    roles: ["everyone"],
-    defaultPrompt: "",
-    defaultSystemPrompt: "",
-    defaultWidth: 320,
-    defaultHeight: 320,
   },
 };
 
