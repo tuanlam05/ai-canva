@@ -223,7 +223,8 @@ export const BOX_TYPES: Record<BoxType, BoxTypeMeta> = {
     hasAI: true,
     loadingText: "Mapping themes into journey stages...",
     errorTitle: "Couldn't build the journey map.",
-    errorHint: "No stages were produced. Themes from the previous box are unchanged.",
+    errorHint:
+      "No stages were produced. Themes from the previous box are unchanged.",
     category: "worker",
     roles: ["everyone"],
     defaultPrompt:
@@ -242,7 +243,8 @@ export const BOX_TYPES: Record<BoxType, BoxTypeMeta> = {
     hasAI: true,
     loadingText: "Reviewing journey stages for safety concerns...",
     errorTitle: "Couldn't complete the safety review.",
-    errorHint: "No flags were produced. Nothing has been approved or dismissed.",
+    errorHint:
+      "No flags were produced. Nothing has been approved or dismissed.",
     category: "worker",
     roles: ["everyone"],
     defaultPrompt:
@@ -256,17 +258,20 @@ export const BOX_TYPES: Record<BoxType, BoxTypeMeta> = {
     label: "UX Coach",
     icon: "🎓",
     color: "#84cc16",
-    description: "Generate a step-by-step procedure for a UX task.",
+    description:
+      "Gives plain-language guidance on what to do about each flagged safety risk.",
     hasAI: true,
     loadingText: "Preparing guidance...",
     errorTitle: "Couldn't generate guidance.",
     errorHint: "Safety review results are unaffected.",
     category: "worker",
     roles: ["everyone"],
-    defaultPrompt: "placeholder",
-    defaultSystemPrompt: "placeholder",
-    defaultWidth: 360,
-    defaultHeight: 380,
+    defaultPrompt:
+      "Based on the following flagged safety risks, provide practical guidance for each risk and identify what the research team should investigate next.\n\nFor guidance, create exactly one entry for every risk received. Copy each risk_id and stage unchanged from the input. Restate the concern in plain language, explain why it matters for the patient, and give concrete actions the UX team can take. Preserve researcher_confirmed exactly as provided in the input.\n\nAlso provide a separate research_next checklist containing the most useful research questions or evidence gaps. These questions may relate to one or multiple risks, or to a broader gap that is not tied to a single risk.\n\nDo not invent risks. Do not include quotes. The risk_id is the traceability link back to the original safety finding, so it must remain unchanged.\n\nRisks:\n{{inputs}}",
+    defaultSystemPrompt:
+      'You are a UX coaching assistant. You provide practical, plain-language recommendations for flagged patient-safety risks. Your recommendations are advisory professional judgment, clearly distinct from the grounded evidence and risk assessment they respond to. Do not present recommendations as findings or evidence.\n\nGROUNDING RULES:\n- Advise only on risks present in the input. Never invent a risk.\n- "guidance" must contain exactly one entry for every risk received.\n- Copy each risk_id unchanged from the input. risk_id is the traceability link back to the original Safety output and must never be renamed, reformatted, or generated.\n- Copy each risk\'s stage unchanged from the input.\n- Pass researcher_confirmed through unchanged from the input. Risks marked true should still receive guidance, and risks marked false should also receive guidance.\n- Keep next_steps concrete and actionable for a UX/research team: a design change, content change, workflow change, usability check, or research activity.\n- Do not include quotes or re-emit source evidence. If evidence is needed, the renderer can trace back through risk_id.\n- "research_next" is separate from per-risk guidance. It is a checklist of what the team should investigate next. It may group multiple risks under one question or identify a broader evidence gap that is not tied to one risk.\n- Do not claim that advice is directly supported by evidence unless the input explicitly supports that claim.\n\nOUTPUT STRICTLY AS JSON WITH NO PROSE OUTSIDE THE JSON:\n\n{\n  "guidance": [\n    {\n      "id": "advice-1",\n      "risk_id": "risk-1",\n      "stage": "stage name, copied from the risk unchanged",\n      "plain_summary": "the concern restated in plain, non-technical words",\n      "why_it_matters": "one or two sentences on the consequence for the patient",\n      "next_steps": [\n        "a concrete action the team can take"\n      ],\n      "researcher_confirmed": true\n    }\n  ],\n  "research_next": [\n    {\n      "id": "research-1",\n      "question": "what the team should go and find out",\n      "why": "what is currently unknown or thinly evidenced",\n      "risk_ids": ["risk-1"]\n    }\n  ]\n}',
+    defaultWidth: 320,
+    defaultHeight: 320,
   },
   documents: {
     label: "Documents",
