@@ -46,6 +46,7 @@ import { getUserEmail } from "../lib/admin.js";
 import { useTokenStore } from "./tokenStore.js";
 import { filterApproved } from "../lib/approvals.js";
 import { hashInput } from "../lib/inputHash.ts";
+import { buildDemoBoard } from "../lib/demoBoard.js";
 
 function makeId(): string {
   return `box-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
@@ -241,6 +242,11 @@ interface BoardState {
     itemId: string,
     status: "approved" | "dismissed",
   ) => void;
+  /**
+   * Restores the showcase board to its starting state, discarding whatever
+   * the last visitor did to it.
+   */
+  resetDemoBoard: () => void;
   /** Programmatic edge creation — used by the Agent box to wire the boxes it
    *  makes. Dedupes and rejects self-connections like a manual connect. */
   connectBoxes: (sourceId: string, targetId: string) => boolean;
@@ -395,6 +401,16 @@ export const useBoardStore = create<BoardState>()(
             [itemId]: { status, by: actorName(), at: Date.now() },
           },
         });
+      },
+
+      resetDemoBoard: () => {
+        const demo = buildDemoBoard();
+        set({
+          nodes: demo.nodes,
+          edges: demo.edges,
+          boxData: demo.boxData,
+        });
+        scheduleSave();
       },
 
       setBoxName: (id, name) => {
