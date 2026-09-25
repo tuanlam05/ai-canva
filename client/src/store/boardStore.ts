@@ -45,6 +45,7 @@ import { useAuthStore } from "./authStore.js";
 import { getUserEmail } from "../lib/admin.js";
 import { useTokenStore } from "./tokenStore.js";
 import { filterApproved } from "../lib/approvals.js";
+import { hashInput } from "../lib/inputHash.ts";
 import { buildDemoBoard } from "../lib/demoBoard.js";
 
 function makeId(): string {
@@ -228,6 +229,10 @@ interface BoardState {
   deleteBox: (id: string) => void;
   runBox: (id: string) => Promise<void>;
   rerunTheme: (id: string, themeIndex: number) => Promise<void>;
+  revertToVersion: (id: string, versionId: string) => void;
+  commitGeneratedOutput: (id: string, output: string) => void;
+  isBoxStale: (id: string, visited?: Set<string>) => boolean;
+  cascadeRerun: (id: string) => Promise<void>;
   /**
    * Records the researcher's decision on one output item (safety risks).
    * Dismissed items are withheld from downstream boxes.
@@ -523,6 +528,20 @@ export const useBoardStore = create<BoardState>()(
         });
         // Subscription is handled automatically by the useEffect in App.tsx
         // that watches currentBoardId — no need to manually subscribe here
+
+        // boxes with interrupted generation will be flagged on load.
+        Object.entries(board.boxData as Record<string, BoxData>).forEach(
+          ([id, data]) => {
+            if (data.status === "running") {
+              get().updateBoxData(id, {
+                output: "",
+                status: "error",
+                error:
+                  "Generation was interrupted (page reloaded). Please rerun.",
+              });
+            }
+          },
+        );
       },
 
       saveToFirestore: async () => {
@@ -790,6 +809,47 @@ export const useBoardStore = create<BoardState>()(
         removePresence(state.currentBoardId, user.uid).catch(() => {});
       },
 
+      commitGeneratedOutput: (id: string, output: string) => {
+        const current = get().boxData[id];
+        if (!current) return;
+
+        const versionId = crypto.randomUUID();
+
+        const entry = {
+          id: versionId,
+          output,
+          timestamp: Date.now(),
+        };
+
+        get().updateBoxData(id, {
+          output,
+          history: [...(current.history ?? []), entry],
+          currentVersionId: versionId,
+        });
+      },
+
+      revertToVersion: (id: string, versionId: string) => {
+        const data = get().boxData[id];
+        if (!data?.history) return;
+
+        const version = data.history.find((entry) => entry.id === versionId);
+        if (!version) return;
+
+        get().updateBoxData(id, {
+          output: version.output,
+          currentVersionId: version.id,
+        });
+      },
+
+      cascadeRerun: async (id: string) => {
+        const state = get();
+        const downstreamEdges = state.edges.filter((e) => e.source === id);
+        for (const edge of downstreamEdges) {
+          await get().runBox(edge.target); // await so each stage waits for its input to be ready
+          await get().cascadeRerun(edge.target); // recurse further downstream
+        }
+      },
+
       runBox: async (id) => {
         const state = get();
         const node = state.nodes.find((n) => n.id === id);
@@ -858,17 +918,87 @@ export const useBoardStore = create<BoardState>()(
             }
           }
 
+          if (boxType === "insight") {
+            try {
+              const parsed = JSON.parse(result.content);
+              const sourceText = namedInputs
+                .map((input) => input.output)
+                .join("\n\n");
+
+              const verifiedThemes = verifyThemesAgainstSource(
+                parsed.themes,
+                sourceText,
+              );
+
+              finalOutput = JSON.stringify({ themes: verifiedThemes });
+            } catch {
+              // fall back to raw output
+            }
+
+            get().commitGeneratedOutput(id, finalOutput);
+
+            get().updateBoxData(id, {
+              status: "done",
+              error: undefined,
+              lastRunInputHash: hashInput(namedInputs),
+            });
+
+            return;
+          }
+
+          get().commitGeneratedOutput(id, finalOutput);
+
           get().updateBoxData(id, {
-            output: result.content,
             status: "done",
             error: undefined,
             // A rerun produces new items with new ids, so decisions made on
             // the previous output no longer refer to anything.
             approvals: undefined,
+            lastRunInputHash: hashInput(namedInputs),
           });
+
+          await get().cascadeRerun(id);
         } catch (err: any) {
           get().setBoxStatus(id, "error", err.message || "Generation failed");
         }
+      },
+
+      isBoxStale: (id: string, visited = new Set<string>()) => {
+        const state = get();
+        const box = state.boxData[id];
+        const node = state.nodes.find((node) => node.id === id);
+
+        // Prevent infinite loops if the graph contains a cycle.
+        if (visited.has(id)) {
+          return false;
+        }
+
+        visited.add(id);
+
+        // Check whether this box's own inputs changed.
+        if (box?.lastRunInputHash) {
+          const collectedInputs = collectInputs(
+            state.nodes,
+            state.edges,
+            state.boxData,
+            id,
+          );
+
+          const currentHash = hashInput(collectedInputs.namedInputs);
+
+          if (box.lastRunInputHash !== currentHash) {
+            return true;
+          }
+        }
+
+        // Check whether any upstream dependency is stale.
+        const upstreamIds = state.edges
+          .filter((edge) => edge.target === id)
+          .map((edge) => edge.source);
+
+        return upstreamIds.some((upstreamId) =>
+          get().isBoxStale(upstreamId, visited),
+        );
       },
 
       rerunTheme: async (id: string, themeIndex: number) => {
@@ -935,11 +1065,16 @@ export const useBoardStore = create<BoardState>()(
               ]
             : otherThemes;
 
+          const updatedOutput = JSON.stringify({ themes: updatedThemes });
+
+          get().commitGeneratedOutput(id, updatedOutput);
+
           get().updateBoxData(id, {
-            output: JSON.stringify({ themes: updatedThemes }),
             status: "done",
             error: undefined,
           });
+
+          await get().cascadeRerun(id);
         } catch (err: any) {
           get().setBoxStatus(id, "error", err.message || "Rerun failed");
         }
