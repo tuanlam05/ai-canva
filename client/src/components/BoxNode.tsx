@@ -31,6 +31,7 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
   const edges = useBoardStore((s) => s.edges);
   const allNodes = useBoardStore((s) => s.nodes);
   const setBoxName = useBoardStore((s) => s.setBoxName);
+  const isStale = useBoardStore((state) => state.isBoxStale(id));
 
   const [showSettings, setShowSettings] = useState(false);
   // Documents box: how many files are mid-extraction right now (transient UI
@@ -42,6 +43,8 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
   // Label box: click-to-edit text (same pattern as the box-name editor).
   const [isEditingLabel, setIsEditingLabel] = useState(false);
   const [labelDraft, setLabelDraft] = useState("");
+  // history loggin feature
+  const [showHistory, setShowHistory] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const promptRef = useRef<HTMLTextAreaElement>(null);
@@ -287,7 +290,7 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
           <Handle
             type="target"
             position={Position.Left}
-            style={{ background: meta.color, width: 10, height: 10 }}
+            style={{ background: meta.color, width: 18, height: 18 }}
           />
         )}
 
@@ -345,10 +348,22 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
           </button>
         </div>
 
+        {isStale && !isInputBox && (
+          <div className="text-xs bg-amber-50 border-b border-amber-200 text-amber-700 px-2 py-1 flex items-center justify-between">
+            <span>⚠ Input changed since last run</span>
+            <button
+              onClick={() => runBox(id)}
+              className="font-medium hover:underline"
+            >
+              Refresh
+            </button>
+          </div>
+        )}
+
         {/* Body. `nodrag` lets a finger scroll long output inside the box on
           touch devices (the box is dragged by its header instead) — paired
           with `touch-action: pan-y` on `.box-body` for coarse pointers. */}
-        <div className="box-body nodrag px-3 py-2 flex-1 min-h-0 overflow-y-auto">
+        <div className="box-body px-3 py-2 flex-1 min-h-0 overflow-y-auto">
           {/* Checklist box — the team's shared to-do list (collab). Every rule
             lives in lib/checklist.ts; the panel is rendering + store wiring. */}
           {isChecklist && (
@@ -501,7 +516,9 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
                   <p className="text-[15px] font-inter text-[#892121]">
                     {meta.errorTitle ?? "Something went wrong."}
                   </p>
-                  <p className="text-[11px] font-inter text-[#B3B9C6]">{meta.errorHint}</p>
+                  <p className="text-[11px] font-inter text-[#B3B9C6]">
+                    {meta.errorHint}
+                  </p>
                   <p
                     className="text-[11px] text-slate-400 font-mono"
                     title={boxData.error}
@@ -517,10 +534,16 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
                 </div>
               )}
 
-              {hasTextOutput && !hasError &&
+              {hasTextOutput &&
+                !hasError &&
                 !isRunning &&
                 (boxType === "insight" ? (
-                  <InsightWeaverOutput content={boxData.output} boxId={id} />
+                  <InsightWeaverOutput
+                    content={boxData.output}
+                    boxId={id}
+                    showHistory={showHistory}
+                    onRevertComplete={() => setShowHistory(false)}
+                  />
                 ) : boxType === "journey" ? (
                   <JourneyMapperOutput content={boxData.output} />
                 ) : boxType === "safety" ? (
@@ -569,6 +592,18 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
               style={{ backgroundColor: meta.color }}
             >
               ▶ Run
+            </button>
+            <button
+              onClick={() => setShowHistory(!showHistory)}
+              className={
+                "px-2.5 py-1.5 rounded-lg text-sm transition " +
+                (showHistory
+                  ? "bg-slate-200 text-slate-700"
+                  : "bg-slate-100 text-slate-500 hover:bg-slate-200")
+              }
+              title="Version history"
+            >
+              🕐
             </button>
             <button
               onClick={() => setShowSettings(!showSettings)}
@@ -659,7 +694,7 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
           <Handle
             type="source"
             position={Position.Right}
-            style={{ background: meta.color, width: 10, height: 10 }}
+            style={{ background: meta.color, width: 18, height: 18 }}
           />
         )}
       </div>
