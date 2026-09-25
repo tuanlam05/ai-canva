@@ -114,6 +114,7 @@ export interface BoxData {
 export interface Evidence {
   quote: string;
   source: string;
+  verified?: boolean;
 }
 
 export interface Theme {
