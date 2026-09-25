@@ -21,7 +21,7 @@ import { BOX_TYPES } from "../types.js";
 
 import { generate } from "../lib/api.js";
 import { fillPromptTemplate, getBoxOutput } from "../lib/prompts.js";
-
+import { verifyThemesAgainstSource } from "../lib/quoteVerification.ts";
 import { buildDocumentsOutput } from "../lib/documents.js";
 import { cleanBoxDataForFirestore } from "../lib/serialization.js";
 import {
@@ -143,11 +143,16 @@ function collectInputs(
       // Gather text output with the source box name. Documents boxes
       // derive their output from the extracted file text (labeled by
       // filename) — see lib/documents.ts.
-      const sourceType = (sourceNode?.data?.boxType || sourceNode?.type) as string;
+      const sourceType = (sourceNode?.data?.boxType ||
+        sourceNode?.type) as string;
       const rawOutput = sourceData.documents?.length
         ? buildDocumentsOutput(sourceData.documents)
         : getBoxOutput(sourceData.output, sourceData.content);
-      const textOutput = filterApproved(sourceType, rawOutput, sourceData.approvals);
+      const textOutput = filterApproved(
+        sourceType,
+        rawOutput,
+        sourceData.approvals,
+      );
       if (textOutput) {
         namedInputs.push({
           name: (sourceNode?.data?.title as string) || "Unnamed",
@@ -835,6 +840,24 @@ export const useBoardStore = create<BoardState>()(
             boxType,
           });
 
+          let finalOutput = result.content;
+
+          if (boxType === "insight") {
+            try {
+              const parsed = JSON.parse(result.content);
+              const sourceText = namedInputs
+                .map((input) => input.output)
+                .join("\n\n");
+              const verifiedThemes = verifyThemesAgainstSource(
+                parsed.themes,
+                sourceText,
+              );
+              finalOutput = JSON.stringify({ themes: verifiedThemes });
+            } catch {
+              // fall back to unverified raw output
+            }
+          }
+
           get().updateBoxData(id, {
             output: result.content,
             status: "done",
@@ -891,7 +914,18 @@ export const useBoardStore = create<BoardState>()(
           });
 
           const newThemeData = JSON.parse(result.content);
-          const newTheme = newThemeData.themes?.[0];
+          let newTheme = newThemeData.themes?.[0];
+
+          if (newTheme) {
+            const sourceText = namedInputs
+              .map((input) => input.output)
+              .join("\n\n");
+            const [verifiedTheme] = verifyThemesAgainstSource(
+              [newTheme],
+              sourceText,
+            );
+            newTheme = verifiedTheme;
+          }
 
           const updatedThemes = newTheme
             ? [

@@ -107,7 +107,7 @@ export default function InsightWeaverOutput({
                     handleReject(i);
                   }}
                   disabled={regeneratingIndex !== null}
-                  className={`text-white rounded-md text-xs px-3 py-1 transition ${regeneratingIndex===i ? "bg-blue-100" : "bg-[#60a5fa] hover:bg-blue-300"}`}
+                  className={`text-white rounded-md text-xs px-3 py-1 transition ${regeneratingIndex === i ? "bg-blue-100" : "bg-[#60a5fa] hover:bg-blue-300"}`}
                   title="Reject & regenerate"
                 >
                   Rerun
@@ -137,7 +137,21 @@ export default function InsightWeaverOutput({
                         className="text-xs text-slate-600 bg-slate-50 rounded-tr-lg rounded-br-lg p-2 border-l-4 border-blue-300"
                       >
                         <p className="italic">&ldquo;{ev.quote}&rdquo;</p>
-                        <p className="text-slate-400 mt-1">— {ev.source}</p>
+                        <p className="text-slate-400 mt-1">
+                          — {ev.source}
+                          <span
+                            className={
+                              "text-xs px-2 py-0.5 rounded-md border ml-2 " +
+                              (ev.verified === true
+                                ? "border-green-300 text-green-700"
+                                : "border-yellow-300 text-yellow-600")
+                            }
+                          >
+                            {(ev.verified === true) === true
+                              ? "Verified"
+                              : "Unverified"}
+                          </span>
+                        </p>
                       </div>
                     ))}
                   </div>
