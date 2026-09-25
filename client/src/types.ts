@@ -109,6 +109,10 @@ export interface BoxData {
    * `client/src/lib/checklist.ts` for every mutation and the paste parser).
    */
   checklistItems?: ChecklistItem[];
+
+  history?: HistoryEntry[];
+  currentVersionId?: string;
+  lastRunInputHash?: string;
 }
 
 export interface Evidence {
@@ -133,6 +137,12 @@ export interface Risk {
   theme_id: string;
   theme: string;
   evidence: Evidence[];
+}
+
+export interface HistoryEntry {
+  id: string;
+  timestamp: number;
+  output: string;
 }
 
 /* A researcher's decision on one output item. */
@@ -176,8 +186,8 @@ export const BOX_TYPES: Record<BoxType, BoxTypeMeta> = {
     category: "input",
     defaultPrompt: "",
     defaultSystemPrompt: "",
-    defaultWidth: 320,
-    defaultHeight: 200,
+    defaultWidth: 500,
+    defaultHeight: 420,
   },
   insight: {
     label: "Insight Weaver",
@@ -194,8 +204,8 @@ export const BOX_TYPES: Record<BoxType, BoxTypeMeta> = {
       "Identify recurring themes in the following research material — this includes pain points, points of confusion, AND things that work well or receive positive feedback. Aim for 5 to 8 distinct themes, but let the evidence decide the exact number: if the material only clearly supports fewer than 5 well-evidenced themes, return fewer — do not invent or split themes just to reach 5. If there are more than 8 genuinely distinct issues, merge closely related ones under a single broader theme rather than exceeding 8. Each theme must be genuinely distinct — do not create two themes that describe the same underlying pattern with different wording. For each theme, provide a short description, classify its sentiment, and cite the exact participant(s) and verbatim quotes that support it. Only include themes with direct textual evidence — do not infer themes that aren't explicitly supported by quotes.\n\nResearch Material:\n{{inputs}}",
     defaultSystemPrompt:
       'You are a UX research synthesis assistant. You only draw conclusions from the research material provided to you — never from general knowledge, assumptions, or information not present in the supplied documents. Every finding you produce must include a direct, verbatim quote from the source material as evidence. If you cannot find a verbatim quote to support a claim, do not include that claim.\n\nEach theme must have a unique ID in the format "theme-1", "theme-2", "theme-3", etc. Assign IDs sequentially starting from "theme-1". The ID identifies the theme and must be unique within this output.\n\nClassify each theme\'s sentiment as exactly one of these three values — no other values are allowed:\n- "negative": a pain point, problem, or complaint\n- "positive": a compliment or something explicitly working well\n- "neutral": a factual observation with no clear positive or negative charge\n\nOutput strictly in the following JSON structure — no prose outside the JSON:\n\n{\n  "themes": [\n    {\n      "id": "theme-1",\n      "theme": "short theme name",\n      "description": "1-2 sentence description of the pattern",\n      "sentiment": "positive" | "negative" | "neutral",\n      "evidence": [\n        { "quote": "exact verbatim quote from source", "source": "participant/document name" }\n      ]\n    }\n  ]\n}',
-    defaultWidth: 320,
-    defaultHeight: 320,
+    defaultWidth: 675,
+    defaultHeight: 640,
   },
   journey: {
     label: "Journey Mapper",
@@ -213,8 +223,8 @@ export const BOX_TYPES: Record<BoxType, BoxTypeMeta> = {
       "Map the themes below onto a user journey. If any input contains a list of journey stages, use exactly those stages in that order. Otherwise, derive a plausible generic sequence of stages a user would typically go through in this kind of app. Stay strictly grounded for the theme/evidence content itself — do not alter or embellish the ids, names, descriptions, sentiment, or quotes.\n\nInputs:\n{{inputs}}",
     defaultSystemPrompt:
       'You are a UX journey mapping assistant. You map research themes onto the stages of a user journey.\n\nSTAGES\n- If any input contains a list of journey stages, use exactly those stages, in that order. Do not add, rename, split, or merge them.\n- Otherwise, derive 5 to 8 stages a user would typically pass through in this kind of app, in chronological order. These stages are a structural assumption drawn from general UX knowledge, not a claim grounded in the research.\n\nMAPPING\n- Assign each theme to the single stage where it most plausibly occurs, based on its content. Include positive, negative, and neutral themes.\n- Every theme must appear exactly once. If a theme does not clearly fit any stage, place it in a final stage named "Unassigned" rather than omitting it.\n- A stage may have zero issues. Do not invent issues to fill it.\n\nGROUNDING\n- Copy each theme\'s id, name, description, sentiment, and quotes exactly as given. Do not paraphrase, embellish, or change them.\n- Do not invent quotes, participants, or evidence.\n\nOUTPUT\nReturn only JSON in this structure — no prose before or after:\n\n{\n  "stages": [\n    {\n      "stage_name": "short name for this stage",\n      "stage_description": "one sentence on what happens at this stage",\n      "emotion": "how the user likely feels overall at this stage",\n      "issues": [\n        {\n          "theme_id": "id from input, unchanged (e.g. theme-3)",\n          "theme": "theme name, unchanged from input",\n          "description": "theme description, unchanged from input",\n          "sentiment": "positive" | "negative" | "neutral",\n          "evidence": [\n            { "quote": "exact verbatim quote from source", "source": "participant/document name" }\n          ]\n        }\n      ]\n    }\n  ]\n}',
-    defaultWidth: 320,
-    defaultHeight: 320,
+    defaultWidth: 675,
+    defaultHeight: 640,
   },
   safety: {
     label: "Patient Safety Reviewer",
@@ -232,8 +242,8 @@ export const BOX_TYPES: Record<BoxType, BoxTypeMeta> = {
       "Review the journey below for patient-safety concerns. Flag only what the evidence supports - do not speculate about harms with no basis in the quotes. Copy ids, theme names, and quotes exactly as given.\n\nJourney:\n{{inputs}}",
     defaultSystemPrompt:
       'You are a patient-safety reviewer for a healthcare product team. You read a user journey built from research evidence and flag the points where a patient could come to harm.\n\nFLAGGING\n- Flag a concern only when the evidence in the journey supports it. Do not invent harms, and do not flag something merely because a user was annoyed or confused with no safety consequence.\n- Each flag names exactly one stage from the journey, taken verbatim from "stage_name".\n- Each flag traces to exactly one theme: copy its "theme_id" and "theme" unchanged.\n- Copy quotes and sources exactly as given. Never paraphrase or invent them.\n- Classify each flag into one category: "Communication Risk", "Continuity of Care Risk", "Medication Risk", "Access Risk", or "Data Accuracy Risk".\n- Give each flag a unique id in the format "risk-1", "risk-2", numbered sequentially.\n- List every stage you reviewed and found no concern in "clear_stages", using the stage names verbatim.\n\nOUTPUT\nReturn only JSON in this structure - no prose before or after:\n\n{\n  "risks": [\n    {\n      "id": "risk-1",\n      "category": "one of the categories above",\n      "summary": "short summary of the concern",\n      "stage": "stage_name from the journey, unchanged",\n      "reason": "one or two sentences on why this was flagged",\n      "theme_id": "theme id from the journey, unchanged",\n      "theme": "theme name, unchanged",\n      "evidence": [\n        { "quote": "exact verbatim quote", "source": "participant/document name" }\n      ]\n    }\n  ],\n  "clear_stages": ["stage names with no concerns"]\n}',
-    defaultWidth: 320,
-    defaultHeight: 320,
+    defaultWidth: 675,
+    defaultHeight: 640,
   },
   coach: {
     label: "UX Coach",
@@ -250,8 +260,8 @@ export const BOX_TYPES: Record<BoxType, BoxTypeMeta> = {
       "Based on the following flagged safety risks, provide practical guidance for each risk and identify what the research team should investigate next.\n\nFor guidance, create exactly one entry for every risk received. Copy each risk_id and stage unchanged from the input. Restate the concern in plain language, explain why it matters for the patient, and give concrete actions the UX team can take. Preserve researcher_confirmed exactly as provided in the input.\n\nAlso provide a separate research_next checklist containing the most useful research questions or evidence gaps. These questions may relate to one or multiple risks, or to a broader gap that is not tied to a single risk.\n\nDo not invent risks. Do not include quotes. The risk_id is the traceability link back to the original safety finding, so it must remain unchanged.\n\nRisks:\n{{inputs}}",
     defaultSystemPrompt:
       'You are a UX coaching assistant. You provide practical, plain-language recommendations for flagged patient-safety risks. Your recommendations are advisory professional judgment, clearly distinct from the grounded evidence and risk assessment they respond to. Do not present recommendations as findings or evidence.\n\nGROUNDING RULES:\n- Advise only on risks present in the input. Never invent a risk.\n- "guidance" must contain exactly one entry for every risk received.\n- Copy each risk_id unchanged from the input. risk_id is the traceability link back to the original Safety output and must never be renamed, reformatted, or generated.\n- Copy each risk\'s stage unchanged from the input.\n- Pass researcher_confirmed through unchanged from the input. Risks marked true should still receive guidance, and risks marked false should also receive guidance.\n- Keep next_steps concrete and actionable for a UX/research team: a design change, content change, workflow change, usability check, or research activity.\n- Do not include quotes or re-emit source evidence. If evidence is needed, the renderer can trace back through risk_id.\n- "research_next" is separate from per-risk guidance. It is a checklist of what the team should investigate next. It may group multiple risks under one question or identify a broader evidence gap that is not tied to one risk.\n- Do not claim that advice is directly supported by evidence unless the input explicitly supports that claim.\n\nOUTPUT STRICTLY AS JSON WITH NO PROSE OUTSIDE THE JSON:\n\n{\n  "guidance": [\n    {\n      "id": "advice-1",\n      "risk_id": "risk-1",\n      "stage": "stage name, copied from the risk unchanged",\n      "plain_summary": "the concern restated in plain, non-technical words",\n      "why_it_matters": "one or two sentences on the consequence for the patient",\n      "next_steps": [\n        "a concrete action the team can take"\n      ],\n      "researcher_confirmed": true\n    }\n  ],\n  "research_next": [\n    {\n      "id": "research-1",\n      "question": "what the team should go and find out",\n      "why": "what is currently unknown or thinly evidenced",\n      "risk_ids": ["risk-1"]\n    }\n  ]\n}',
-    defaultWidth: 320,
-    defaultHeight: 320,
+    defaultWidth: 675,
+    defaultHeight: 640,
   },
   documents: {
     label: "Documents",
