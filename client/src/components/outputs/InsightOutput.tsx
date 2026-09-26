@@ -77,7 +77,8 @@ export default function InsightWeaverOutput({
           No themes found in the research material.
         </div>
       ) : (
-        themes.map((theme, i) => {
+        <div className="space-y-2.5">
+        {themes.map((theme, i) => {
           const isOpen = expanded.has(i);
           return (
             <div
@@ -86,11 +87,15 @@ export default function InsightWeaverOutput({
             >
               <button
                 onClick={() => toggle(i)}
-                className="w-full flex items-center justify-between px-3 py-2 text-left hover:bg-slate-50 transition"
+                className="w-full flex items-center justify-between px-3 py-2.5 text-left hover:bg-slate-50 transition"
               >
                 <div className="flex items-center gap-2 min-w-0">
-                  <span className="text-slate-400 text-xs flex-shrink-0">
-                    {isOpen ? "▾" : "▸"}
+                  <span
+                    className="text-slate-500 text-sm flex-shrink-0 w-4 text-center transition-transform"
+                    style={{ transform: isOpen ? "rotate(90deg)" : "none" }}
+                    aria-hidden
+                  >
+                    ▶
                   </span>
                   <AnimatePresence mode="wait">
                     <motion.span
@@ -176,7 +181,8 @@ export default function InsightWeaverOutput({
               </AnimatePresence>
             </div>
           );
-        })
+        })}
+        </div>
       )}
     </>
   );
