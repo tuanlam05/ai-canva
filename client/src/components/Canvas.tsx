@@ -200,7 +200,7 @@ export default function Canvas() {
       noWheelClassName="react-flow__node"
     >
       <Background variant={BackgroundVariant.Dots} gap={20} size={1.5} />
-      <Controls />
+      <Controls position="bottom-center" orientation="horizontal" />
       <Cursors />
       {/* Area drawing tool */}
       <div className="absolute top-3 left-3 z-10 flex flex-col gap-1.5">

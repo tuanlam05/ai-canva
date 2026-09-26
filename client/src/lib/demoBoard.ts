@@ -42,12 +42,17 @@ const PIPELINE: { id: string; type: BoxType }[] = [
   { id: "demo-coach", type: "coach" },
 ];
 
-/** Left column of inputs. */
+/**
+ * Layout. Spacing is derived from the box sizes in BOX_TYPES plus a gutter,
+ * so nothing overlaps on open.
+ */
+const GUTTER = 60;
 const INPUT_X = 0;
-const INPUT_Y = [0, 240, 480, 720];
-const PIPELINE_X = 440;
-const PIPELINE_STEP_X = 400;
-const PIPELINE_Y = 300;
+const TEXT_STEP_Y = BOX_TYPES.text.defaultHeight + GUTTER;
+const INPUT_Y = [0, TEXT_STEP_Y, TEXT_STEP_Y * 2, TEXT_STEP_Y * 3];
+const PIPELINE_X = BOX_TYPES.text.defaultWidth + GUTTER * 2;
+const PIPELINE_STEP_X = BOX_TYPES.insight.defaultWidth + GUTTER;
+const PIPELINE_Y = TEXT_STEP_Y;
 
 function node(id: string, type: BoxType, title: string, x: number, y: number): Node {
   const meta = BOX_TYPES[type];
