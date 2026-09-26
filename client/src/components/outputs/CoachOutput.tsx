@@ -103,8 +103,10 @@ export default function CoachOutput({ content, boxId }: CoachOutputProps) {
 
   if (guidance.length === 0 && researchNext.length === 0) {
     return (
-      <div className="text-slate-400 text-sm py-4 text-center">
-        No guidance produced.
+      <div className="text-slate-400 text-sm py-4 px-3 text-center">
+        {risks.length === 0
+          ? "No safety flags were passed on, so there is nothing to advise on. Run Patient Safety Reviewer first, or restore a dismissed flag."
+          : "No guidance produced."}
       </div>
     );
   }
