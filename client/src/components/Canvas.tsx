@@ -30,7 +30,9 @@ const nodeTypes = {
   area: AreaNode,
 };
 
-export default function Canvas() {
+const SIDEBAR_WIDTH = 232;
+
+export default function Canvas({ sidebarOpen = false }: { sidebarOpen?: boolean }) {
   const nodes = useBoardStore((s) => s.nodes);
   const edges = useBoardStore((s) => s.edges);
   const onNodesChange = useBoardStore((s) => s.onNodesChange);
@@ -235,6 +237,10 @@ export default function Canvas() {
       <MiniMap
         pannable
         zoomable
+        style={{
+          right: (sidebarOpen ? SIDEBAR_WIDTH : 0) + 16,
+          transition: "right 300ms",
+        }}
         nodeColor={(node: Node) => {
           const colors: Record<string, string> = {
             text: "#fbbf24",

@@ -392,7 +392,7 @@ export default function App() {
           />
         ) : (
           <ReactFlowProvider>
-            <Canvas />
+            <Canvas sidebarOpen={sidebarOpen} />
             <Sidebar open={sidebarOpen} onToggle={() => setSidebarOpen(!sidebarOpen)} />
             <Toolbar />
           </ReactFlowProvider>
