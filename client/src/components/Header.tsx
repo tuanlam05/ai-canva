@@ -1,4 +1,4 @@
-import { memo } from "react";
+import { memo, useState } from "react";
 import type { User } from "firebase/auth";
 import { useBoardStore } from "../store/boardStore.js";
 import { useTokenStore } from "../store/tokenStore.js";
@@ -70,6 +70,12 @@ function Header({
   const saveStatus = useBoardStore((s) => s.saveStatus);
   const boardList = useBoardStore((s) => s.boardList);
   const refreshBoardList = useBoardStore((s) => s.refreshBoardList);
+  const resetDemoBoard = useBoardStore((s) => s.resetDemoBoard);
+
+  // Reset is destructive and sits in the bar during a live demo, so it asks
+  // once. Only offered on the showcase board.
+  const [confirmingReset, setConfirmingReset] = useState(false);
+  const isDemoBoard = boardTitle.trim().toLowerCase().startsWith("demo");
 
   const totalTokens = useTokenStore((s) => s.totalTokens);
   const fmtTokens = (n: number) => n.toLocaleString("en-US");
@@ -125,6 +131,38 @@ function Header({
             <Button variant="primary" onClick={onShare} className="ml-1">
               👥 Share
             </Button>
+            <div className="h-6 w-px bg-slate-200 mx-1.5" />
+          </>
+        )}
+
+        {/* Showcase reset: puts the board back to its starting state between
+          visitors, restoring deleted boxes and clearing every decision. */}
+        {currentBoardId && isDemoBoard && (
+          <>
+            {confirmingReset ? (
+              <div className="flex items-center gap-1.5">
+                <span className="text-[11px] text-slate-500 hidden md:block">
+                  Reset the demo board?
+                </span>
+                <Button
+                  variant="primary"
+                  onClick={() => {
+                    resetDemoBoard();
+                    setConfirmingReset(false);
+                  }}
+                >
+                  Yes, reset
+                </Button>
+                <Button onClick={() => setConfirmingReset(false)}>Cancel</Button>
+              </div>
+            ) : (
+              <Button
+                onClick={() => setConfirmingReset(true)}
+                title="Restore the demo board to its starting state"
+              >
+                ↺ Reset
+              </Button>
+            )}
             <div className="h-6 w-px bg-slate-200 mx-1.5" />
           </>
         )}
