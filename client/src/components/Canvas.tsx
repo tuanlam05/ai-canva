@@ -24,6 +24,7 @@ const nodeTypes = {
   documents: BoxNode,
   coach: BoxNode,
   safety: BoxNode,
+  summary: BoxNode,
   note: BoxNode,
   label: BoxNode,
   checklist: BoxNode,

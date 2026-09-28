@@ -20,6 +20,7 @@ import InsightWeaverOutput from "./outputs/InsightOutput.js";
 import JourneyMapperOutput from "./outputs/JourneyOutput.js";
 import SafetyReviewerOutput from "./outputs/SafetyOutputs.js";
 import CoachOutput from "./outputs/CoachOutput.js";
+import SummaryOutput from "./outputs/SummaryOutput.js";
 
 function BoxNode({ id, data, selected, type }: NodeProps) {
   const boxType = (data.boxType || type) as BoxType;
@@ -100,6 +101,8 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
   const isLabel = boxType === "label";
   const isChecklist = boxType === "checklist";
   const isUtility = isNote || isLabel || isChecklist;
+
+  const isSummary = boxType === "summary";
 
   // ===== Collaboration annotations render WITHOUT the standard box card =====
   // (no header bar, no border/footer chrome) so they read as canvas
@@ -212,6 +215,16 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
     );
   }
 
+  if (isSummary) {
+    return (
+      <>
+        <NodeResizer minWidth={360} minHeight={300} isVisible={!!selected} />
+
+        <SummaryOutput id={id} selected={selected} />
+      </>
+    );
+  }
+
   const isRunning = boxData.status === "running";
   const hasError = boxData.status === "error";
   const hasTextOutput = boxData.output && boxData.output.trim().length > 0;
@@ -304,37 +317,45 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
         >
           <div className="flex items-center gap-2 flex-1 min-w-0">
             <span className="text-base flex-shrink-0">{meta.icon}</span>
-            {isEditingName ? (
-              <input
-                autoFocus
-                type="text"
-                value={nameDraft}
-                onChange={(e) => setNameDraft(e.target.value)}
-                onBlur={() => {
-                  setBoxName(id, nameDraft.trim() || meta.label + " Box");
-                  setIsEditingName(false);
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
+
+            {/* title + subtitle stacked */}
+            <div className="flex flex-col min-w-0 flex-1">
+              {isEditingName ? (
+                <input
+                  autoFocus
+                  type="text"
+                  value={nameDraft}
+                  onChange={(e) => setNameDraft(e.target.value)}
+                  onBlur={() => {
                     setBoxName(id, nameDraft.trim() || meta.label + " Box");
                     setIsEditingName(false);
-                  }
-                  if (e.key === "Escape") setIsEditingName(false);
-                }}
-                className="font-semibold text-slate-700 text-sm bg-white rounded px-1 py-0.5 border border-slate-300 focus:outline-none focus:ring-1 focus:ring-blue-400 flex-1 min-w-0"
-              />
-            ) : (
-              <span
-                onClick={() => {
-                  setNameDraft((data.title as string) || meta.label + " Box");
-                  setIsEditingName(true);
-                }}
-                className="font-semibold text-slate-700 text-sm truncate cursor-text hover:bg-white/40 rounded px-1 py-0.5 transition"
-                title="Click to rename"
-              >
-                {(data.title as string) || meta.label + " Box"}
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      setBoxName(id, nameDraft.trim() || meta.label + " Box");
+                      setIsEditingName(false);
+                    }
+                    if (e.key === "Escape") setIsEditingName(false);
+                  }}
+                  className="font-semibold text-slate-700 text-sm bg-white rounded px-1 py-0.5 border border-slate-300 focus:outline-none focus:ring-1 focus:ring-blue-400 min-w-0"
+                />
+              ) : (
+                <span
+                  onClick={() => {
+                    setNameDraft((data.title as string) || meta.label + " Box");
+                    setIsEditingName(true);
+                  }}
+                  className="font-semibold text-slate-700 text-sm truncate cursor-text hover:bg-white/40 rounded px-1 py-0.5 transition"
+                  title="Click to rename"
+                >
+                  {(data.title as string) || meta.label + " Box"}
+                </span>
+              )}
+              <span className="text-[11px] text-slate-500 truncate px-1 leading-tight">
+                {meta.subtitle}
               </span>
-            )}
+            </div>
+
             <span className="text-xs text-slate-400 flex-shrink-0 ml-auto">
               {meta.label}
             </span>

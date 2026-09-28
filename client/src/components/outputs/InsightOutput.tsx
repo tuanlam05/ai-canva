@@ -73,115 +73,118 @@ export default function InsightWeaverOutput({
           </pre>
         </div>
       ) : themes.length === 0 ? (
-        <div className="text-slate-400 text-sm py-4 text-center">
+        <div className="text-slate-400 text-base py-4 text-center">
           No themes found in the research material.
         </div>
       ) : (
-        <div className="space-y-2.5">
-        {themes.map((theme, i) => {
-          const isOpen = expanded.has(i);
-          return (
-            <div
-              key={i}
-              className="border border-slate-200 rounded-lg overflow-hidden bg-white"
-            >
-              <button
-                onClick={() => toggle(i)}
-                className="w-full flex items-center justify-between px-3 py-2.5 text-left hover:bg-slate-50 transition"
+        <div className="space-y-3">
+          <p className="text-[#8B93A5] font-inter text-base ms-1">
+            {themes.length} theme{themes.length > 1 && "s"}
+          </p>
+          {themes.map((theme, i) => {
+            const isOpen = expanded.has(i);
+            return (
+              <div
+                key={i}
+                className="border border-slate-200 rounded-lg overflow-hidden bg-white"
               >
-                <div className="flex items-center gap-2 min-w-0">
-                  <span
-                    className="text-slate-500 text-sm flex-shrink-0 w-4 text-center transition-transform"
-                    style={{ transform: isOpen ? "rotate(90deg)" : "none" }}
-                    aria-hidden
-                  >
-                    ▶
-                  </span>
-                  <AnimatePresence mode="wait">
-                    <motion.span
-                      key={regeneratingIndex === i ? "loading" : "theme"}
-                      initial={{ opacity: 0, y: -4 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: 4 }}
-                      transition={{ duration: 0.15 }}
-                      className="font-medium text-sm text-slate-700 truncate inline-block"
+                <button
+                  onClick={() => toggle(i)}
+                  className="w-full flex items-center justify-between px-3 py-2.5 text-left hover:bg-slate-50 transition"
+                >
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span
+                      className="text-slate-500 text-sm flex-shrink-0 w-4 text-center transition-transform"
+                      style={{ transform: isOpen ? "rotate(90deg)" : "none" }}
+                      aria-hidden
                     >
-                      {regeneratingIndex === i
-                        ? "⏳ Regenerating..."
-                        : theme.theme}
-                    </motion.span>
-                  </AnimatePresence>
-                </div>
-                <div className="flex items-center gap-1 flex-shrink-0 ml-2">
-                  {!readOnly && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleReject(i);
-                      }}
-                      disabled={regeneratingIndex !== null}
-                      className={`text-white rounded-md text-xs px-3 py-1 transition ${
-                        regeneratingIndex === i
-                          ? "bg-blue-100"
-                          : "bg-[#60a5fa] hover:bg-blue-300"
-                      }`}
-                      title="Reject & regenerate"
-                    >
-                      Rerun
-                    </button>
-                  )}
-                  <span className="text-xs text-blue-700 font-bold flex-shrink-0 ml-2 bg-slate-100 px-1.5 py-0.5 rounded-full">
-                    {theme.evidence?.length ?? 0}
-                  </span>
-                </div>
-              </button>
+                      ▶
+                    </span>
+                    <AnimatePresence mode="wait">
+                      <motion.span
+                        key={regeneratingIndex === i ? "loading" : "theme"}
+                        initial={{ opacity: 0, y: -4 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: 4 }}
+                        transition={{ duration: 0.15 }}
+                        className="font-semibold text-base text-slate-800 truncate inline-block"
+                      >
+                        {regeneratingIndex === i
+                          ? "⏳ Regenerating..."
+                          : theme.theme}
+                      </motion.span>
+                    </AnimatePresence>
+                  </div>
+                  <div className="flex items-center gap-1 flex-shrink-0 ml-2">
+                    {!readOnly && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleReject(i);
+                        }}
+                        disabled={regeneratingIndex !== null}
+                        className={`text-white rounded-md text-sm px-3 py-1.5 transition ${
+                          regeneratingIndex === i
+                            ? "bg-blue-100"
+                            : "bg-[#60a5fa] hover:bg-blue-300"
+                        }`}
+                        title="Reject & regenerate"
+                      >
+                        Rerun
+                      </button>
+                    )}
+                    <span className="text-sm text-blue-700 font-bold flex-shrink-0 ml-2 bg-slate-100 px-1.5 py-0.5 rounded-full">
+                      {theme.evidence?.length ?? 0}
+                    </span>
+                  </div>
+                </button>
 
-              <AnimatePresence>
-                {isOpen && (
-                  <motion.div
-                    initial={{ height: 0, opacity: 0 }}
-                    animate={{ height: "auto", opacity: 1 }}
-                    exit={{ height: 0, opacity: 0 }}
-                    transition={{ duration: 0.2 }}
-                    className="overflow-hidden"
-                  >
-                    <div className="px-3 pb-3 pt-1 border-t border-slate-100 space-y-2">
-                      <p className="text-xs text-slate-500">
-                        {theme.description}
-                      </p>
-                      {theme.evidence?.map((ev, j) => (
-                        <div
-                          key={j}
-                          className="text-xs text-slate-600 bg-slate-50 rounded-tr-lg rounded-br-lg p-2 border-l-4 border-blue-300"
-                        >
-                          <p className="italic">&ldquo;{ev.quote}&rdquo;</p>
-                          <p className="text-slate-400 mt-1">
-                            — {ev.source}
-                            <span
-                              title={
-                                ev.verified
-                                  ? "This quote appears word for word in the source transcript."
-                                  : "This quote does not match the transcript exactly — the wording may have been altered. Check it against the source before using it."
-                              }
-                              className={
-                                "text-xs px-2 py-0.5 rounded-md border ml-2 cursor-help " +
-                                (ev.verified
-                                  ? "border-green-300 text-green-700"
-                                  : "border-yellow-300 text-yellow-600")
-                              }
-                            >
-                              {ev.verified ? "Verified" : "Unverified"}
-                            </span>
-                          </p>
-                        </div>
-                      ))}
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-          );
-        })}
+                <AnimatePresence>
+                  {isOpen && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: "auto", opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      transition={{ duration: 0.2 }}
+                      className="overflow-hidden"
+                    >
+                      <div className="px-3 pb-3 pt-1 border-t border-slate-100 space-y-2">
+                        <p className="text-sm leading-6 text-slate-600">
+                          {theme.description}
+                        </p>
+                        {theme.evidence?.map((ev, j) => (
+                          <div
+                            key={j}
+                            className="text-sm leading-6 text-slate-700 bg-slate-50 rounded-tr-lg rounded-br-lg p-3 border-l-4 border-blue-300"
+                          >
+                            <p className="italic">&ldquo;{ev.quote}&rdquo;</p>
+                            <p className="text-slate-500 mt-2">
+                              — {ev.source}
+                              <span
+                                title={
+                                  ev.verified
+                                    ? "This quote appears word for word in the source transcript."
+                                    : "This quote does not match the transcript exactly — the wording may have been altered. Check it against the source before using it."
+                                }
+                                className={
+                                  "text-sm px-2 py-0.5 rounded-md border ml-2 cursor-help " +
+                                  (ev.verified
+                                    ? "border-green-300 text-green-700"
+                                    : "border-yellow-300 text-yellow-600")
+                                }
+                              >
+                                {ev.verified ? "Verified" : "Unverified"}
+                              </span>
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            );
+          })}
         </div>
       )}
     </>
@@ -226,7 +229,7 @@ export default function InsightWeaverOutput({
             transition={{ duration: 0.15 }}
           >
             {!boxData.history?.length ? (
-              <div className="text-slate-400 text-sm py-6 text-center">
+              <div className="text-slate-400 text-base py-6 text-center">
                 No history yet.
               </div>
             ) : (
@@ -239,7 +242,7 @@ export default function InsightWeaverOutput({
                       key={entry.id}
                       onClick={() => setViewingVersion(entry.id)}
                       disabled={isCurrent}
-                      className={`w-full text-left px-3 py-2 rounded-lg border text-sm transition ${
+                      className={`w-full text-left px-3 py-2.5 rounded-lg border text-sm transition ${
                         isCurrent
                           ? "border-blue-200 bg-blue-50 text-blue-700 cursor-default"
                           : "border-slate-200 text-slate-600 hover:bg-slate-50"
