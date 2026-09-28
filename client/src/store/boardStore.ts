@@ -941,7 +941,7 @@ export const useBoardStore = create<BoardState>()(
             lastRunInputHash: hashInput(namedInputs),
           });
 
-          await get().cascadeRerun(id);
+          //await get().cascadeRerun(id);
         } catch (err: any) {
           get().setBoxStatus(id, "error", err.message || "Generation failed");
         }
@@ -1058,7 +1058,7 @@ export const useBoardStore = create<BoardState>()(
             error: undefined,
           });
 
-          await get().cascadeRerun(id);
+          //await get().cascadeRerun(id);
         } catch (err: any) {
           get().setBoxStatus(id, "error", err.message || "Rerun failed");
         }
