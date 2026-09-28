@@ -45,8 +45,8 @@ import { useAuthStore } from "./authStore.js";
 import { getUserEmail } from "../lib/admin.js";
 import { useTokenStore } from "./tokenStore.js";
 import { filterApproved } from "../lib/approvals.js";
-import { buildDemoBoard } from "../lib/demoBoard.js";
 import { hashInput } from "../lib/inputHash.ts";
+import { buildDemoBoard } from "../lib/demoBoard.js";
 
 function makeId(): string {
   return `box-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
