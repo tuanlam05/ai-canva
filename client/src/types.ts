@@ -7,7 +7,8 @@ export type BoxType =
   | "coach"
   | "checklist"
   | "label"
-  | "note";
+  | "note"
+  | "summary";
 
 /**
  * One task in a Checklist box — the team's shared to-do list. Every field is
@@ -157,7 +158,8 @@ export type BoxCategory =
   | "input"
   | "worker"
   | "collab"
-  | "companion";
+  | "companion"
+  | "output";
 
 export interface BoxTypeMeta {
   label: string;
@@ -173,6 +175,7 @@ export interface BoxTypeMeta {
   defaultSystemPrompt: string;
   defaultWidth: number;
   defaultHeight: number;
+  subtitle?: string;
 }
 
 export const BOX_TYPES: Record<BoxType, BoxTypeMeta> = {
@@ -182,6 +185,7 @@ export const BOX_TYPES: Record<BoxType, BoxTypeMeta> = {
     color: "#fbbf24",
     description:
       "Write down simple context for your research project, in text form.",
+    subtitle: "Your interview transcript",
     hasAI: false,
     category: "input",
     defaultPrompt: "",
@@ -195,6 +199,7 @@ export const BOX_TYPES: Record<BoxType, BoxTypeMeta> = {
     color: "#60a5fa",
     description:
       "Extracts themes and pain points from research transcripts, with verified quotes, sources, and sentiment.",
+    subtitle: "Finds themes in your transcripts",
     hasAI: true,
     loadingText: "Reading transcripts for themes...",
     errorTitle: "Couldn't extract themes.",
@@ -213,6 +218,7 @@ export const BOX_TYPES: Record<BoxType, BoxTypeMeta> = {
     color: "#a78bfa",
     description:
       "Maps grounded themes onto journey stages — supplied by the user or inferred — preserving sentiment and verbatim evidence.",
+    subtitle: "Maps where users struggle",
     hasAI: true,
     loadingText: "Mapping themes into journey stages...",
     errorTitle: "Couldn't build the journey map.",
@@ -232,6 +238,7 @@ export const BOX_TYPES: Record<BoxType, BoxTypeMeta> = {
     color: "#ef4444",
     description:
       "Flags patient-safety concerns in the journey, tracing each back to a stage, theme, and verbatim quote.",
+    subtitle: "Flags patient-safety risks",
     hasAI: true,
     loadingText: "Reviewing journey stages for safety concerns...",
     errorTitle: "Couldn't complete the safety review.",
@@ -251,6 +258,7 @@ export const BOX_TYPES: Record<BoxType, BoxTypeMeta> = {
     color: "#84cc16",
     description:
       "Gives plain-language guidance on what to do about each flagged safety risk.",
+    subtitle: "Suggests what to do next",
     hasAI: true,
     loadingText: "Preparing guidance...",
     errorTitle: "Couldn't generate guidance.",
@@ -269,6 +277,7 @@ export const BOX_TYPES: Record<BoxType, BoxTypeMeta> = {
     color: "#64748b",
     description:
       "Upload PDF, Word, or text files. Their extracted text becomes input for downstream boxes via {{inputs}}.",
+    subtitle: "Upload a transcript file",
     hasAI: false,
     category: "input",
     defaultPrompt: "",
@@ -313,6 +322,20 @@ export const BOX_TYPES: Record<BoxType, BoxTypeMeta> = {
     defaultSystemPrompt: "",
     defaultWidth: 320,
     defaultHeight: 340,
+  },
+  summary: {
+    label: "PDF Summary",
+    icon: "📄",
+    color: "#fbbf24",
+    description:
+      "Generate a polished PDF report that brings together the findings from your research pipeline.",
+    subtitle: "Synthesize all findings into a PDF report",
+    hasAI: false,
+    category: "worker",
+    defaultPrompt: "",
+    defaultSystemPrompt: "",
+    defaultWidth: 1000,
+    defaultHeight: 750,
   },
 };
 
