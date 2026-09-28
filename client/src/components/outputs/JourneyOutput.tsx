@@ -67,9 +67,9 @@ export default function JourneyMapperOutput({
 
   if (parseError) {
     return (
-      <div className="text-amber-600 text-sm p-2 bg-amber-50 rounded-lg">
+      <div className="text-amber-600 text-base p-3 bg-amber-50 rounded-lg">
         ⚠️ Could not parse structured output. Showing raw text below.
-        <pre className="mt-2 whitespace-pre-wrap text-xs text-slate-500">
+        <pre className="mt-3 whitespace-pre-wrap text-sm leading-6 text-slate-500">
           {content}
         </pre>
       </div>
@@ -78,7 +78,7 @@ export default function JourneyMapperOutput({
 
   if (stages.length === 0) {
     return (
-      <div className="text-slate-400 text-sm py-4 text-center">
+      <div className="text-slate-400 text-base py-6 text-center">
         No journey stages found.
       </div>
     );
@@ -99,10 +99,11 @@ export default function JourneyMapperOutput({
   };
 
   return (
-    <div className="space-y-2 nowheel">
-      <p className="text-[#8B93A5] font-inter text-sm ms-1">
+    <div className="space-y-3 nowheel">
+      <p className="text-[#8B93A5] font-inter text-base ms-1">
         {stages.length} stage{stages.length > 1 && "s"}
       </p>
+
       {stages.map((stage, i) => {
         const isOpen = expanded.has(i);
         const issues = stage.issues ?? [];
@@ -119,27 +120,31 @@ export default function JourneyMapperOutput({
             {/* stage header */}
             <button
               onClick={() => toggle(i)}
-              className="w-full flex items-center justify-between px-3 py-2 text-left hover:bg-slate-50 transition"
+              className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-slate-50 transition"
             >
-              <div className="flex items-center gap-2 min-w-0">
-                <span className="text-slate-400 text-xs flex-shrink-0">
-                  {isOpen ? "▾" : "▸"}
+              <div className="flex items-center gap-3 min-w-0">
+                <span
+                  className="text-slate-500 text-base flex-shrink-0 w-5 text-center transition-transform"
+                  style={{ transform: isOpen ? "rotate(90deg)" : "none" }}
+                  aria-hidden
+                >
+                  ▶
                 </span>
 
-                <span className="font-medium text-sm text-slate-700 truncate">
+                <span className="font-semibold text-base text-slate-800 truncate">
                   {i + 1}. {stage.stage_name}
                 </span>
               </div>
 
               <div className="flex items-center gap-2 flex-shrink-0 ml-2">
                 {hasNegative && (
-                  <span className="text-xs text-[#C43F4C] font-bold bg-[#C43F4C]/[29%] px-1.5 py-0.5 rounded-md">
+                  <span className="text-sm text-[#C43F4C] font-bold bg-[#C43F4C]/[29%] px-2 py-1 rounded-md">
                     ⚠ Friction
                   </span>
                 )}
 
                 {stage.emotion && (
-                  <span className="text-xs text-slate-500 uppercase">
+                  <span className="text-sm text-slate-500 uppercase">
                     {stage.emotion}
                   </span>
                 )}
@@ -155,13 +160,13 @@ export default function JourneyMapperOutput({
                   transition={{ duration: 0.2 }}
                   className="overflow-hidden"
                 >
-                  <div className="px-3 pb-3 pt-1 border-t border-slate-100 space-y-2">
-                    <p className="text-xs text-slate-500">
+                  <div className="px-4 pb-4 pt-2 border-t border-slate-100 space-y-3">
+                    <p className="text-sm leading-6 text-slate-600">
                       {stage.stage_description}
                     </p>
 
                     {issues.length === 0 && (
-                      <div className="text-xs text-slate-400 bg-slate-50 rounded-lg p-2 text-center">
+                      <div className="text-sm leading-6 text-slate-400 bg-slate-50 rounded-lg p-3 text-center">
                         No research evidence found for this stage.
                       </div>
                     )}
@@ -173,14 +178,14 @@ export default function JourneyMapperOutput({
                         <div
                           key={issue.theme_id || j}
                           className={
-                            "border rounded-lg p-2 space-y-2 " + s.card
+                            "border rounded-lg p-3 space-y-3 " + s.card
                           }
                         >
-                          <p className="text-xs font-medium text-slate-700">
+                          <p className="text-sm font-semibold text-slate-800">
                             {s.icon} {issue.theme}
                           </p>
 
-                          <p className="text-xs text-slate-500">
+                          <p className="text-sm leading-6 text-slate-600">
                             {issue.description}
                           </p>
 
@@ -188,13 +193,13 @@ export default function JourneyMapperOutput({
                             <div
                               key={k}
                               className={
-                                "text-xs text-slate-600 rounded-tr-lg rounded-br-lg p-2 border-l-4 " +
+                                "text-sm leading-6 text-slate-700 rounded-tr-lg rounded-br-lg p-3 border-l-4 " +
                                 s.quote
                               }
                             >
                               <p className="italic">&ldquo;{ev.quote}&rdquo;</p>
 
-                              <p className="text-slate-400 mt-1">
+                              <p className="text-sm text-slate-500 mt-2">
                                 — {ev.source}
                               </p>
                             </div>

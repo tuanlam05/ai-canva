@@ -55,9 +55,9 @@ export default function SafetyReviewerOutput({
 
   if (parseError) {
     return (
-      <div className="text-amber-600 text-sm p-2 bg-amber-50 rounded-lg">
+      <div className="text-amber-600 text-base p-3 bg-amber-50 rounded-lg">
         ⚠️ Could not parse structured output. Showing raw text below.
-        <pre className="mt-2 whitespace-pre-wrap text-xs text-slate-500">
+        <pre className="mt-3 whitespace-pre-wrap text-sm leading-6 text-slate-500">
           {content}
         </pre>
       </div>
@@ -66,7 +66,7 @@ export default function SafetyReviewerOutput({
 
   if (risks.length === 0 && clearStages.length === 0) {
     return (
-      <div className="text-slate-400 text-sm py-4 text-center">
+      <div className="text-slate-400 text-base py-6 text-center">
         No safety review produced.
       </div>
     );
@@ -77,13 +77,14 @@ export default function SafetyReviewerOutput({
   const reviewedCount = risks.filter((r) => approvals?.[r.id]).length;
 
   return (
-    <div className="space-y-2 nowheel">
+    <div className="space-y-3 nowheel">
       <div className="ms-1">
-        <p className="text-[#8B93A5] font-inter text-sm">
+        <p className="text-[#8B93A5] font-inter text-base">
           {risks.length} flag{risks.length === 1 ? "" : "s"} ·{" "}
           {clearStages.length} stage{clearStages.length === 1 ? "" : "s"} clear
         </p>
-        <p className="text-[#8B93A5] font-inter text-xs">
+
+        <p className="text-[#8B93A5] font-inter text-sm">
           {reviewedCount} of {risks.length} risk
           {risks.length === 1 ? "" : "s"} reviewed
         </p>
@@ -97,29 +98,30 @@ export default function SafetyReviewerOutput({
         return (
           <div
             key={risk.id}
-            className="border border-slate-200 rounded-lg p-3 space-y-2 bg-white transition"
+            className="border border-slate-200 rounded-lg p-4 space-y-3 bg-white transition"
           >
             {/* Only the flag's content fades when dismissed — the buttons stay
               at full strength, since opacity is inherited and a child can
               never be more opaque than its parent. */}
             <div
               className={
-                "space-y-2 transition " + (isDismissed ? "opacity-50" : "")
+                "space-y-3 transition " + (isDismissed ? "opacity-50" : "")
               }
             >
               {/* Category + review status */}
               <div className="flex items-center gap-2 flex-wrap">
                 <span
                   className={
-                    "text-xs font-bold px-2 py-0.5 rounded-md " +
+                    "text-sm font-bold px-2.5 py-1 rounded-md " +
                     categoryStyle(risk.category)
                   }
                 >
                   {risk.category}
                 </span>
+
                 <span
                   className={
-                    "text-xs px-2 py-0.5 rounded-md border " +
+                    "text-sm px-2.5 py-1 rounded-md border " +
                     (decision === "approved"
                       ? "border-green-300 text-green-700"
                       : isDismissed
@@ -135,48 +137,58 @@ export default function SafetyReviewerOutput({
                 </span>
               </div>
 
-              <p className="text-sm font-medium text-slate-700">
+              <p className="text-base leading-6 font-semibold text-slate-800">
                 {risk.summary}
               </p>
 
-              <p className="text-xs text-slate-400">
-                affected journey stage{" "}
-                <span className="text-xs font-medium text-[#6b5bd6] bg-[#a78bfa]/20 px-1.5 py-0.5 rounded-md">
+              <p className="text-sm leading-6 text-slate-500">
+                Affected journey stage{" "}
+                <span className="text-sm font-medium text-[#6b5bd6] bg-[#a78bfa]/20 px-2 py-1 rounded-md">
                   {risk.stage}
                 </span>
               </p>
 
               <div>
-                <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide">
+                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">
                   Reason for flagging
                 </p>
-                <p className="text-xs text-slate-600">{risk.reason}</p>
+
+                <p className="text-sm leading-6 text-slate-600">
+                  {risk.reason}
+                </p>
               </div>
 
               {/* Evidence trace: stage → theme → the original quote. */}
-              <div className="space-y-1">
-                <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide">
+              <div className="space-y-2">
+                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide">
                   Evidence trace
                 </p>
-                <div className="flex items-center gap-1 flex-wrap text-xs text-slate-600">
-                  <span className="bg-slate-100 px-1.5 py-0.5 rounded-md">
+
+                <div className="flex items-center gap-1.5 flex-wrap text-sm text-slate-600">
+                  <span className="bg-slate-100 px-2 py-1 rounded-md">
                     {risk.stage}
                   </span>
+
                   <span className="text-slate-300">→</span>
-                  <span className="bg-slate-100 px-1.5 py-0.5 rounded-md">
+
+                  <span className="bg-slate-100 px-2 py-1 rounded-md">
                     {risk.theme}
                   </span>
+
                   <span className="text-slate-300">→</span>
                 </div>
+
                 {risk.evidence?.map((ev, i) => (
                   <div
                     key={i}
-                    className="text-xs text-slate-600 bg-blue-50/60 rounded-tr-lg rounded-br-lg p-2 border-l-4 border-blue-300"
+                    className="text-sm leading-6 text-slate-700 bg-blue-50/60 rounded-tr-lg rounded-br-lg p-3 border-l-4 border-blue-300"
                   >
                     <p className="italic">&ldquo;{ev.quote}&rdquo;</p>
-                    <p className="text-slate-400 mt-1">— {ev.source}</p>
+
+                    <p className="text-sm text-slate-500 mt-2">— {ev.source}</p>
                   </div>
                 ))}
+
                 <p className="text-[11px] text-slate-300 uppercase tracking-wide">
                   Read-only
                 </p>
@@ -193,22 +205,24 @@ export default function SafetyReviewerOutput({
                   transition={{ duration: 0.15 }}
                   className="space-y-2"
                 >
-                  <p className="text-xs text-slate-600">
+                  <p className="text-sm leading-6 text-slate-600">
                     Remove this flag from UX Coach&apos;s advice?
                   </p>
+
                   <div className="flex gap-2">
                     <button
                       onClick={() => {
                         setApproval(boxId, risk.id, "dismissed");
                         setConfirming(null);
                       }}
-                      className="text-xs text-white bg-[#C43F4C] hover:bg-red-500 rounded-md px-3 py-1 transition"
+                      className="text-sm text-white bg-[#C43F4C] hover:bg-red-500 rounded-md px-3 py-1.5 transition"
                     >
                       Yes, dismiss
                     </button>
+
                     <button
                       onClick={() => setConfirming(null)}
-                      className="text-xs text-slate-600 border border-slate-300 hover:bg-slate-50 rounded-md px-3 py-1 transition"
+                      className="text-sm text-slate-600 border border-slate-300 hover:bg-slate-50 rounded-md px-3 py-1.5 transition"
                     >
                       Cancel
                     </button>
@@ -226,7 +240,7 @@ export default function SafetyReviewerOutput({
                   <button
                     onClick={() => setApproval(boxId, risk.id, "approved")}
                     className={
-                      "text-xs rounded-md px-3 py-1 transition " +
+                      "text-sm rounded-md px-3 py-1.5 transition " +
                       (decision === "approved"
                         ? "text-white bg-[#2563eb] hover:bg-blue-500"
                         : "text-slate-600 border border-slate-300 hover:bg-slate-50")
@@ -234,10 +248,11 @@ export default function SafetyReviewerOutput({
                   >
                     Approve
                   </button>
+
                   {!isDismissed && (
                     <button
                       onClick={() => setConfirming(risk.id)}
-                      className="text-xs text-slate-600 border border-slate-300 hover:bg-slate-50 rounded-md px-3 py-1 transition"
+                      className="text-sm text-slate-600 border border-slate-300 hover:bg-slate-50 rounded-md px-3 py-1.5 transition"
                     >
                       Dismiss
                     </button>
@@ -253,12 +268,13 @@ export default function SafetyReviewerOutput({
       {clearStages.map((stage) => (
         <div
           key={stage}
-          className="flex items-center gap-2 border border-dashed border-slate-200 rounded-lg px-3 py-2"
+          className="flex items-center gap-3 border border-dashed border-slate-200 rounded-lg px-4 py-3"
         >
-          <span className="text-xs font-medium text-[#6b5bd6] bg-[#a78bfa]/20 px-1.5 py-0.5 rounded-md flex-shrink-0">
+          <span className="text-sm font-medium text-[#6b5bd6] bg-[#a78bfa]/20 px-2 py-1 rounded-md flex-shrink-0">
             {stage}
           </span>
-          <span className="text-xs text-slate-400">
+
+          <span className="text-sm leading-6 text-slate-400">
             No safety concerns identified for this stage
           </span>
         </div>

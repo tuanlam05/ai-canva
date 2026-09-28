@@ -82,9 +82,9 @@ export default function CoachOutput({ content, boxId }: CoachOutputProps) {
 
   if (parseError) {
     return (
-      <div className="text-amber-600 text-sm p-2 bg-amber-50 rounded-lg">
+      <div className="text-amber-600 text-base p-3 bg-amber-50 rounded-lg">
         ⚠️ Could not parse structured output. Showing raw text below.
-        <pre className="mt-2 whitespace-pre-wrap text-xs text-slate-500">
+        <pre className="mt-3 whitespace-pre-wrap text-sm leading-6 text-slate-500">
           {content}
         </pre>
       </div>
@@ -107,7 +107,7 @@ export default function CoachOutput({ content, boxId }: CoachOutputProps) {
 
   if (guidance.length === 0 && researchNext.length === 0) {
     return (
-      <div className="text-slate-400 text-sm py-4 px-3 text-center">
+      <div className="text-slate-400 text-base py-6 px-4 text-center">
         {liveRisks.length === 0
           ? "No safety flags were passed on, so there is nothing to advise on. Run Patient Safety Reviewer first, or restore a dismissed flag."
           : "No guidance produced."}
@@ -116,15 +116,15 @@ export default function CoachOutput({ content, boxId }: CoachOutputProps) {
   }
 
   return (
-    <div className="space-y-2 nowheel">
-      <div className="w-full rounded-md bg-[#F3FAF9] border-[#F1F9E3] border-2 p-2">
-        <p className="text-[#2F6F68] font-inter text-[11.5px]">
+    <div className="space-y-3 nowheel">
+      <div className="w-full rounded-md bg-[#F3FAF9] border-[#F1F9E3] border-2 p-3">
+        <p className="text-[#2F6F68] font-inter text-sm leading-6">
           Advisory only. Nothing here changes the pipeline output.
         </p>
       </div>
 
       {visibleGuidance.length === 0 && researchNext.length === 0 && (
-        <div className="text-slate-400 text-sm py-4 text-center">
+        <div className="text-slate-400 text-base py-6 text-center">
           All guidance has been dismissed in Safety Reviewer.
         </div>
       )}
@@ -146,12 +146,12 @@ export default function CoachOutput({ content, boxId }: CoachOutputProps) {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -4 }}
               transition={{ duration: 0.15 }}
-              className="border border-slate-200 rounded-lg p-3 space-y-3 bg-white"
+              className="border border-slate-200 rounded-lg p-4 space-y-4 bg-white"
             >
               <div className="flex items-center gap-2 flex-wrap">
                 <span
                   className={
-                    "text-xs font-bold px-2 py-0.5 rounded-md " +
+                    "text-sm font-bold px-2.5 py-1 rounded-md " +
                     categoryStyle(risk.category)
                   }
                 >
@@ -159,41 +159,43 @@ export default function CoachOutput({ content, boxId }: CoachOutputProps) {
                 </span>
               </div>
 
-              <p className="text-sm font-semibold text-slate-700 mt-2">
+              <p className="text-base leading-6 font-semibold text-slate-800">
                 {item.plain_summary}
               </p>
 
               <div className="mt-2">
-                <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide">
+                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide">
                   Affected journey stage
                 </p>
 
-                <p className="text-xs text-slate-600 mt-1">{item.stage}</p>
+                <p className="text-sm leading-6 text-slate-600 mt-1">
+                  {item.stage}
+                </p>
               </div>
 
               <div className="mt-3">
-                <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide">
+                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide">
                   Why it matters
                 </p>
 
-                <p className="text-xs text-slate-600 mt-1">
+                <p className="text-sm leading-6 text-slate-600 mt-1">
                   {item.why_it_matters}
                 </p>
               </div>
 
               {item.next_steps.length > 0 && (
                 <div className="mt-3">
-                  <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide">
+                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide">
                     Next steps
                   </p>
 
-                  <ul className="mt-1 space-y-1">
+                  <ul className="mt-2 space-y-2">
                     {item.next_steps.map((step, index) => (
                       <li
                         key={index}
-                        className="text-xs text-slate-600 flex gap-2"
+                        className="text-sm leading-6 text-slate-600 flex gap-2"
                       >
-                        <span className="text-[#84cc16]">•</span>
+                        <span className="text-[#84cc16] mt-0.5">•</span>
                         <span>{step}</span>
                       </li>
                     ))}
@@ -204,7 +206,7 @@ export default function CoachOutput({ content, boxId }: CoachOutputProps) {
               <div className="mt-3 flex items-center gap-2 flex-wrap">
                 <span
                   className={
-                    "text-xs px-2 py-0.5 rounded-md border " +
+                    "text-sm px-2.5 py-1 rounded-md border " +
                     (decision === "approved"
                       ? "border-green-300 text-green-700"
                       : isDismissed
@@ -225,8 +227,8 @@ export default function CoachOutput({ content, boxId }: CoachOutputProps) {
       </AnimatePresence>
 
       {researchNext.length > 0 && (
-        <div className="border border-slate-200 rounded-lg p-3 bg-white space-y-3">
-          <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide">
+        <div className="border border-slate-200 rounded-lg p-4 bg-white space-y-4">
+          <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide">
             Research next
           </p>
 
@@ -243,15 +245,15 @@ export default function CoachOutput({ content, boxId }: CoachOutputProps) {
                   onClick={() =>
                     setExpandedResearch(isExpanded ? null : research.id)
                   }
-                  className="w-full text-left p-2.5 hover:bg-slate-50 rounded-md transition"
+                  className="w-full text-left p-3 hover:bg-slate-50 rounded-md transition"
                 >
                   <div className="flex items-start justify-between gap-3">
-                    <p className="text-sm font-medium text-slate-700">
+                    <p className="text-base leading-6 font-medium text-slate-700">
                       {research.question}
                     </p>
 
-                    <span className="text-xs text-slate-400">
-                      {isExpanded ? "-" : "+"}
+                    <span className="text-sm text-slate-400 shrink-0">
+                      {isExpanded ? "−" : "+"}
                     </span>
                   </div>
                 </button>
@@ -265,18 +267,20 @@ export default function CoachOutput({ content, boxId }: CoachOutputProps) {
                       transition={{ duration: 0.15 }}
                       className="overflow-hidden"
                     >
-                      <div className="px-2.5 pb-2.5">
-                        <p className="text-xs text-slate-500">{research.why}</p>
+                      <div className="px-3 pb-3">
+                        <p className="text-sm leading-6 text-slate-600">
+                          {research.why}
+                        </p>
 
                         {research.risk_ids.length > 0 && (
-                          <div className="flex gap-1.5 flex-wrap mt-2">
+                          <div className="flex gap-2 flex-wrap mt-3">
                             {research.risk_ids.map((riskId) => {
                               const risk = risks.find((r) => r.id === riskId);
 
                               return (
                                 <span
                                   key={riskId}
-                                  className="text-[10px] px-1.5 py-0.5 rounded-md bg-slate-100 text-slate-500"
+                                  className="text-xs px-2 py-1 rounded-md bg-slate-100 text-slate-500"
                                 >
                                   {risk?.summary ?? riskId}
                                 </span>
