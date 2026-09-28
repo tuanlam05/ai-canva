@@ -601,7 +601,7 @@ function BoxNode({ id, data, selected, type }: NodeProps) {
                   ? "bg-slate-200 text-slate-700"
                   : "bg-slate-100 text-slate-500 hover:bg-slate-200")
               }
-              title="Version history"
+              title="Run history: view previous outputs or restore an earlier run"
             >
               🕐
             </button>

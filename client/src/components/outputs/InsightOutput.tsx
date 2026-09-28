@@ -77,7 +77,8 @@ export default function InsightWeaverOutput({
           No themes found in the research material.
         </div>
       ) : (
-        themes.map((theme, i) => {
+        <div className="space-y-2.5">
+        {themes.map((theme, i) => {
           const isOpen = expanded.has(i);
           return (
             <div
@@ -86,11 +87,15 @@ export default function InsightWeaverOutput({
             >
               <button
                 onClick={() => toggle(i)}
-                className="w-full flex items-center justify-between px-3 py-2 text-left hover:bg-slate-50 transition"
+                className="w-full flex items-center justify-between px-3 py-2.5 text-left hover:bg-slate-50 transition"
               >
                 <div className="flex items-center gap-2 min-w-0">
-                  <span className="text-slate-400 text-xs flex-shrink-0">
-                    {isOpen ? "▾" : "▸"}
+                  <span
+                    className="text-slate-500 text-sm flex-shrink-0 w-4 text-center transition-transform"
+                    style={{ transform: isOpen ? "rotate(90deg)" : "none" }}
+                    aria-hidden
+                  >
+                    ▶
                   </span>
                   <AnimatePresence mode="wait">
                     <motion.span
@@ -153,14 +158,19 @@ export default function InsightWeaverOutput({
                           <p className="text-slate-400 mt-1">
                             — {ev.source}
                             <span
+                              title={
+                                ev.verified
+                                  ? "This quote appears word for word in the source transcript."
+                                  : "This quote does not match the transcript exactly — the wording may have been altered. Check it against the source before using it."
+                              }
                               className={
-                                "text-xs px-2 py-0.5 rounded-md border ml-2 " +
-                                (ev.verified === true
+                                "text-xs px-2 py-0.5 rounded-md border ml-2 cursor-help " +
+                                (ev.verified
                                   ? "border-green-300 text-green-700"
                                   : "border-yellow-300 text-yellow-600")
                               }
                             >
-                              {ev.verified === true ? "Verified" : "Unverified"}
+                              {ev.verified ? "Verified" : "Unverified"}
                             </span>
                           </p>
                         </div>
@@ -171,7 +181,8 @@ export default function InsightWeaverOutput({
               </AnimatePresence>
             </div>
           );
-        })
+        })}
+        </div>
       )}
     </>
   );

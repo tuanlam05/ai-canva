@@ -908,22 +908,6 @@ export const useBoardStore = create<BoardState>()(
               const sourceText = namedInputs
                 .map((input) => input.output)
                 .join("\n\n");
-              const verifiedThemes = verifyThemesAgainstSource(
-                parsed.themes,
-                sourceText,
-              );
-              finalOutput = JSON.stringify({ themes: verifiedThemes });
-            } catch {
-              // fall back to unverified raw output
-            }
-          }
-
-          if (boxType === "insight") {
-            try {
-              const parsed = JSON.parse(result.content);
-              const sourceText = namedInputs
-                .map((input) => input.output)
-                .join("\n\n");
 
               const verifiedThemes = verifyThemesAgainstSource(
                 parsed.themes,
@@ -1134,4 +1118,11 @@ async function generateTextForBox(
   }
 
   return result;
+}
+
+// Dev-only console handle, for inspecting board state while debugging
+// (e.g. checking which quotes failed verification). Stripped from
+// production builds by the import.meta.env.DEV guard.
+if (import.meta.env.DEV) {
+  (window as unknown as Record<string, unknown>).useBoardStore = useBoardStore;
 }
