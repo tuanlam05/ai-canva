@@ -33,7 +33,8 @@ export interface ChecklistItem {
   doneAt: number;
 }
 
-export type BoxStatus = "idle" | "running" | "done" | "error";
+/** "queued": waiting for an upstream box that is still running to finish. */
+export type BoxStatus = "idle" | "queued" | "running" | "done" | "error";
 
 /**
  * A document attached to a Documents box. All fields are always defined (no
@@ -140,10 +141,17 @@ export interface Risk {
   evidence: Evidence[];
 }
 
+/** One version of an AI box's output (see lib/versions.ts). */
 export interface HistoryEntry {
   id: string;
   timestamp: number;
   output: string;
+  /**
+   * Review decisions made on this version, saved when the box moved on to
+   * another version. Left out, never undefined: Firestore rejects undefined
+   * inside arrays.
+   */
+  approvals?: Record<string, ItemApproval>;
 }
 
 /* A researcher's decision on one output item. */
@@ -185,7 +193,7 @@ export const BOX_TYPES: Record<BoxType, BoxTypeMeta> = {
     color: "#fbbf24",
     description:
       "Write down simple context for your research project, in text form.",
-    subtitle: "Your interview transcript",
+    subtitle: "Interview transcript",
     hasAI: false,
     category: "input",
     defaultPrompt: "",
@@ -194,7 +202,7 @@ export const BOX_TYPES: Record<BoxType, BoxTypeMeta> = {
     defaultHeight: 420,
   },
   insight: {
-    label: "Insight Weaver",
+    label: "Theme Finder",
     icon: "🔍",
     color: "#60a5fa",
     description:
@@ -213,7 +221,7 @@ export const BOX_TYPES: Record<BoxType, BoxTypeMeta> = {
     defaultHeight: 600,
   },
   journey: {
-    label: "Journey Mapper",
+    label: "Journey Flow",
     icon: "🗺️",
     color: "#a78bfa",
     description:
@@ -233,7 +241,7 @@ export const BOX_TYPES: Record<BoxType, BoxTypeMeta> = {
     defaultHeight: 600,
   },
   safety: {
-    label: "Patient Safety Reviewer",
+    label: "Safety Risk Review",
     icon: "🩺",
     color: "#ef4444",
     description:
@@ -253,7 +261,7 @@ export const BOX_TYPES: Record<BoxType, BoxTypeMeta> = {
     defaultHeight: 600,
   },
   coach: {
-    label: "UX Coach",
+    label: "UX Recommendations",
     icon: "🎓",
     color: "#84cc16",
     description:
@@ -277,7 +285,7 @@ export const BOX_TYPES: Record<BoxType, BoxTypeMeta> = {
     color: "#64748b",
     description:
       "Upload PDF, Word, or text files. Their extracted text becomes input for downstream boxes via {{inputs}}.",
-    subtitle: "Upload a transcript file",
+    subtitle: "Documents",
     hasAI: false,
     category: "input",
     defaultPrompt: "",

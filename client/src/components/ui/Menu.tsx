@@ -48,8 +48,8 @@ export function Menu({ trigger, children, panelClassName = "w-64" }: MenuProps) 
       {open && (
         <div
           className={
-            "absolute right-0 top-full mt-2 z-50 rounded-xl bg-white " +
-            "border border-slate-200/80 shadow-xl shadow-slate-900/10 overflow-hidden " +
+            "anim-pop absolute right-0 top-full mt-2 z-50 rounded-[10px] bg-surface " +
+            "border border-line [box-shadow:var(--shadow-float)] overflow-hidden " +
             panelClassName
           }
         >
@@ -81,38 +81,42 @@ export function MenuItem({ icon, label, description, onClick, danger, accent, ac
       className={
         "w-full flex items-center gap-2.5 px-3.5 py-2 text-left transition-colors " +
         (danger
-          ? "text-red-600 hover:bg-red-50"
+          ? "text-[color:var(--red-text)] hover:bg-[color:var(--red-bg)]"
           : accent
-            ? "text-indigo-600 hover:bg-indigo-50"
-            : "text-slate-600 hover:bg-slate-50 hover:text-slate-900") +
-        (active ? " bg-indigo-50/70" : "")
+            ? "text-ink font-semibold hover:bg-surface-sunken"
+            : "text-ink-2 hover:bg-surface-sunken hover:text-ink") +
+        (active ? " bg-surface-sunken" : "")
       }
     >
       {icon !== undefined && (
-        <span className={"w-4 text-center flex-shrink-0 text-sm " + (danger || accent ? "" : "text-slate-500")}>
+        <span className={"w-4 flex items-center justify-center flex-shrink-0 text-sm " + (danger || accent ? "" : "text-ink-muted")}>
           {icon}
         </span>
       )}
       <span className="flex-1 min-w-0">
         <span className="block text-[13px] font-medium truncate">{label}</span>
         {description && (
-          <span className="block text-[11px] text-slate-400 truncate">{description}</span>
+          <span className="block font-mono text-[11px] text-ink-muted truncate">{description}</span>
         )}
       </span>
-      {active && <span className="text-indigo-500 text-xs flex-shrink-0">✓</span>}
+      {active && (
+        <svg viewBox="0 0 24 24" width={12} height={12} fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round" className="text-ink flex-shrink-0" aria-hidden>
+          <path d="M5 12.5l4.5 4.5L19 7.5" />
+        </svg>
+      )}
     </button>
   );
 }
 
 /** Thin separator inside a Menu panel. */
 export function MenuDivider() {
-  return <div className="h-px bg-slate-100 my-1" />;
+  return <div className="h-px bg-line-divider my-1" />;
 }
 
 /** Muted uppercase caption inside a Menu panel. */
 export function MenuLabel({ children }: { children: ReactNode }) {
   return (
-    <div className="px-3.5 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+    <div className="mono-label px-3.5 pt-2 pb-1">
       {children}
     </div>
   );

@@ -22,6 +22,8 @@ import { signInWithGoogle, signOutUser } from "./lib/auth.js";
 import { isAdmin, updateUserProfile, heartbeat } from "./lib/admin.js";
 import { fetchUserTokenTotal } from "./lib/firestore.js";
 import { BOX_TYPES } from "./types.js";
+import { SIGN_IN_ENABLED } from "./lib/authMode.js";
+import { DEMO_VERSION } from "./lib/demoBoard.js";
 import type { BoxType } from "./types.js";
 
 export default function App() {
@@ -184,6 +186,27 @@ export default function App() {
     if (seedingRef.current || authLoading || user) return;
     seedingRef.current = true;
     const state = useBoardStore.getState();
+    // Sign-in disabled: the research demo board is THE board. Load it unless
+    // this browser already holds it (so AI runs and review decisions on the
+    // demo survive a reload). Any other board left in localStorage — e.g. the
+    // old "meal planning" starter an earlier version seeded — is replaced.
+    if (!SIGN_IN_ENABLED) {
+      // Current demo only: an older copy (earlier layout / PDF Summary box)
+      // is replaced once so every visitor gets the latest pipeline.
+      const hasDemo = state.nodes.some(
+        (n) =>
+          n.id.startsWith("demo-") &&
+          (n.data as any)?.demoVersion === DEMO_VERSION,
+      );
+      if (!hasDemo) {
+        useBoardStore.setState({
+          boardTitle: "Demo research canvas",
+          currentBoardId: null,
+        });
+        useBoardStore.getState().resetDemoBoard({ record: false });
+      }
+      return;
+    }
     if (state.nodes.length > 0) return;
     const ideaId = addBox("text", { x: 80, y: 200 });
     useBoardStore.getState().updateBoxData(ideaId, {
@@ -300,7 +323,8 @@ export default function App() {
   };
 
   // Not logged in — show landing page with the workshop code entry.
-  if (!user) {
+  // (Skipped entirely while sign-in is disabled — see lib/authMode.ts.)
+  if (!user && SIGN_IN_ENABLED) {
     return (
       <div className="relative">
         <LandingPage />
@@ -357,9 +381,10 @@ export default function App() {
     );
   }
 
-  // Logged in — show the app
+  // Logged in — show the app. `app-shell` scopes the dark-mode mapping in
+  // index.css to the app (the landing page keeps its own look).
   return (
-    <div className="flex flex-col h-full w-full">
+    <div className="app-shell flex flex-col h-full w-full overflow-hidden bg-canvas text-ink">
       <Header
         user={user}
         sidebarOpen={sidebarOpen}
@@ -378,10 +403,12 @@ export default function App() {
         onToggleFacilitatorView={handleToggleFacilitatorView}
       />
 
-      <div className="flex-1 relative">
-        {adminView ? (
+      {/* overflow-hidden: the Add Box panel slides off-screen to the right
+        when closed; without clipping it widens the page and adds scrollbars. */}
+      <div className="flex-1 min-h-0 relative overflow-hidden">
+        {user && adminView ? (
           <AdminBoard user={user} onBack={() => setAdminView(false)} />
-        ) : facilitatorView ? (
+        ) : user && facilitatorView ? (
           <FacilitatorBoard
             user={user}
             onBack={() => setFacilitatorView(false)}

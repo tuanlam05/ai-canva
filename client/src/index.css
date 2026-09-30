@@ -1,12 +1,176 @@
 @import "@xyflow/react/dist/style.css";
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Instrument+Sans:wght@400;500;600;700&display=swap");
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-@theme {
-  --font-inter: "Inter", sans-serif;
+/* ===== Design tokens (research canvas restyle) =====
+   Colour has meaning: each AI step owns one identity colour (tile, ports,
+   its own data marks); amber = friction / medium, red = risk; everything
+   else is neutral grey. oklch values with hex fallbacks first. */
+:root {
+  --canvas-bg: #eef0f3;
+  --canvas-dot: rgba(22, 24, 29, 0.24);
+  /* Faint major grid (every 5 dots) so the background reads as a canvas */
+  --canvas-grid: rgba(22, 24, 29, 0.06);
+  --surface: #ffffff;
+  --surface-sunken: #f6f7f9;
+  --surface-muted: #f1f3f5;
+  --border: #dcdfe4;
+  --border-control: #d3d7dd;
+  --divider: #eceef1;
+  --divider-soft: #e4e7eb;
+  --ink: #16181d;
+  --ink-hover: #2d3038;
+  --text-2: #3a3e46;
+  --text-3: #474b53;
+  --text-muted: #626771;
+  --text-faint: #6e737c;
+  --icon-muted: #8a8f98;
+  --edge: #a3a8b1;
+  --edge-waiting: #b9bdc4;
+  --group-fill: rgba(255, 255, 255, 0.45);
+  --group-border: rgba(22, 24, 29, 0.1);
+  --port-empty: #e3e6ea;
+  --dismissed: #b3b8c0;
+  --low-bg: #edeff2;
+  --low-text: #565b64;
+
+  /* Step identity colours */
+  --step-insight: #2b63ae;
+  --step-journey: #6448b8;
+  --step-safety: #1c7373;
+  --step-coach: #2f7a45;
+
+  /* Semantic */
+  --amber-bg: #f8edd2;
+  --amber-band: #faf1da;
+  --amber-text: #7a5316;
+  --amber-dot: #dda23a;
+  --red-bg: #f9e6e3;
+  --red-band: #fcf0ee;
+  --red-border: #edbdb6;
+  --red-text: #b02a22;
+  --violet-bg: #eeebf8;
+  --violet-text: #4f3a99;
+  --green-bg: #e3f3e6;
+
+  --shadow-node: 0 1px 2px rgba(22, 24, 29, 0.05), 0 10px 28px -14px rgba(22, 24, 29, 0.22);
+  --shadow-card: 0 1px 3px rgba(22, 24, 29, 0.06);
+  --shadow-float: 0 4px 14px -6px rgba(22, 24, 29, 0.2);
+
+  /* Extra surfaces used by rows, bars, quotes and the dropzone */
+  --surface-hover: #f3f4f6;
+  --surface-row: #f4f5f7;
+  --bar-track: #e9ebee;
+  --quote-text: #30343b;
+  --meta-text: #565b64;
+  --dropzone-bg: #f8f9fa;
+  --dropzone-border: #cbcfd5;
+  --appbar-border: #dde0e5;
+  /* Text on an ink-filled surface (primary button, participant tile) */
+  --on-ink: #ffffff;
+  --overlay: rgba(22, 24, 29, 0.2);
+
+  color-scheme: light;
+  --font-sans: "Instrument Sans", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+}
+@supports (color: oklch(0.5 0.1 250)) {
+  :root {
+    --step-insight: oklch(0.5 0.13 250);
+    --step-journey: oklch(0.5 0.15 293);
+    --step-safety: oklch(0.5 0.085 190);
+    --step-coach: oklch(0.5 0.11 150);
+    --amber-bg: oklch(0.95 0.05 85);
+    --amber-band: oklch(0.96 0.045 85);
+    --amber-text: oklch(0.45 0.1 65);
+    --amber-dot: oklch(0.74 0.15 72);
+    --red-bg: oklch(0.95 0.035 25);
+    --red-border: oklch(0.85 0.07 25);
+    --red-text: oklch(0.48 0.17 27);
+    --violet-bg: oklch(0.95 0.03 293);
+    --violet-text: oklch(0.42 0.14 293);
+    --green-bg: oklch(0.95 0.04 150);
+  }
+}
+
+/* ===== Dark mode =====
+   Same token names, dark values. Applied when <html data-theme="dark">
+   (set by lib/theme.ts from the header toggle or the OS setting), or by the
+   OS setting alone before the script runs, unless light was chosen. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --canvas-bg: #111317;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --canvas-bg: #111317;
+  --canvas-dot: rgba(255, 255, 255, 0.16);
+  --canvas-grid: rgba(255, 255, 255, 0.045);
+  --surface: #1a1d22;
+  --surface-sunken: #22262c;
+  --surface-muted: #272b32;
+  --surface-hover: #2a2e35;
+  --surface-row: #22262c;
+  --border: #30353d;
+  --border-control: #3b414a;
+  --divider: #272b31;
+  --divider-soft: #30353d;
+  --ink: #eceef1;
+  --ink-hover: #d4d8de;
+  --on-ink: #16181d;
+  --text-2: #c8ccd2;
+  --text-3: #b3b8bf;
+  --text-muted: #9298a1;
+  --text-faint: #868c95;
+  --icon-muted: #6f757e;
+  --edge: #5b616a;
+  --edge-waiting: #474c54;
+  --group-fill: rgba(255, 255, 255, 0.025);
+  --group-border: rgba(255, 255, 255, 0.08);
+  --port-empty: #3b414a;
+  --dismissed: #5b616a;
+  --low-bg: #2a2e35;
+  --low-text: #aeb3ba;
+  --bar-track: #30353d;
+  --quote-text: #d6dadf;
+  --meta-text: #9ca2ab;
+  --dropzone-bg: #1f2227;
+  --dropzone-border: #3b414a;
+  --appbar-border: #272b31;
+  --overlay: rgba(0, 0, 0, 0.5);
+
+  --step-insight: #4a83cf;
+  --step-journey: #8468d8;
+  --step-safety: #2e9090;
+  --step-coach: #4a9760;
+
+  --amber-bg: #3d3118;
+  --amber-band: #2a2416;
+  --amber-text: #e8c47c;
+  --amber-dot: #dda23a;
+  --red-bg: #43211e;
+  --red-band: #2b1c1b;
+  --red-border: #6e3630;
+  --red-text: #f2a39a;
+  --violet-bg: #2c2745;
+  --violet-text: #c7baf6;
+  --green-bg: #1d3524;
+
+  --shadow-node: 0 1px 2px rgba(0, 0, 0, 0.4), 0 10px 28px -14px rgba(0, 0, 0, 0.7);
+  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.35);
+  --shadow-float: 0 4px 14px -6px rgba(0, 0, 0, 0.6);
+}
+@supports (color: oklch(0.5 0.1 250)) {
+  :root[data-theme="dark"] {
+    --step-insight: oklch(0.6 0.13 250);
+    --step-journey: oklch(0.6 0.15 293);
+    --step-safety: oklch(0.6 0.085 190);
+    --step-coach: oklch(0.6 0.11 150);
+  }
 }
 
 html,
@@ -14,7 +178,10 @@ body,
 #root {
   height: 100%;
   margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background: var(--canvas-bg);
+  font-family: var(--font-sans);
+  color: var(--ink);
+  -webkit-font-smoothing: antialiased;
 }
 
 /* Full-viewport app behavior (iPads / kiosk):
@@ -42,38 +209,421 @@ select,
   touch-action: manipulation;
 }
 
-/* Box node styling — quiet enterprise card:
-   1px colored border (set inline per box type), layered soft shadow,
-   and an indigo selection ring instead of a heavier shadow. */
+/* ===== Node shell (all pipeline box types) =====
+   White card, neutral border, 56px header / 46px footer. Overflow stays
+   visible so ports can hang outside the card; the body scrolls itself. */
 .box-node {
-  @apply bg-white rounded-xl border;
+  position: relative;
   width: 100%;
   height: 100%;
-  font-size: 14px;
+  font-size: 13px;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
-  box-shadow:
-    0 1px 2px rgba(15, 23, 42, 0.05),
-    0 8px 20px -6px rgba(15, 23, 42, 0.12);
+  overflow: visible;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: var(--shadow-node);
   transition: box-shadow 0.15s ease;
 }
-
+/* Auto-height nodes (no stored height): fit the content, capped so a long
+   output scrolls inside the box instead of growing without limit. */
+.box-node.is-auto {
+  height: auto;
+  max-height: 860px;
+}
+.box-node.has-error {
+  border-color: var(--red-border);
+}
 .box-node.selected {
   box-shadow:
-    0 0 0 1.5px #4f46e5,
-    0 1px 2px rgba(15, 23, 42, 0.05),
-    0 14px 30px -8px rgba(79, 70, 229, 0.28);
+    0 0 0 1.5px var(--ink),
+    var(--shadow-node);
 }
+
+.node-header {
+  height: 56px;
+  flex: none;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 10px 0 12px;
+  border-bottom: 1px solid var(--divider);
+}
+.node-footer {
+  height: 46px;
+  flex: none;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 8px 0 14px;
+  border-top: 1px solid var(--divider);
+}
+
+/* Header tile: a soft tint of the box's identity colour (--tile-color, set
+   inline) with the icon / participant code drawn in that colour. Neutral
+   boxes (participants, PDF Summary, collaboration) use ink, which gives a
+   grey tint with dark text — and the reverse in dark mode. */
+.node-tile {
+  --tile-color: var(--ink);
+  width: 32px;
+  height: 32px;
+  flex: none;
+  box-sizing: border-box;
+  border-radius: 9px;
+  display: grid;
+  place-items: center;
+  color: var(--tile-color);
+  background: color-mix(in srgb, var(--tile-color) 11%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--tile-color) 20%, var(--surface));
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  font-weight: 600;
+}
+.node-tile.is-empty {
+  background: var(--surface);
+  border: 1.5px dashed var(--edge-waiting);
+  color: var(--text-muted);
+}
+
+/* Status pill */
+.status-pill {
+  height: 22px;
+  flex: none;
+  box-sizing: border-box;
+  padding: 0 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border-radius: 11px;
+  font-size: 11.5px;
+  font-weight: 500;
+  white-space: nowrap;
+  background: var(--surface-muted);
+  color: var(--text-3);
+}
+.status-pill.is-ready {
+  background: var(--surface);
+  border: 1px solid var(--border-control);
+}
+.status-pill.is-waiting { color: var(--text-faint); }
+.status-pill.is-review {
+  gap: 6px;
+  background: var(--amber-bg);
+  color: var(--amber-text);
+  font-weight: 600;
+}
+.status-pill.is-review::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--amber-dot);
+}
+.status-pill.is-error {
+  background: var(--red-bg);
+  color: var(--red-text);
+  font-weight: 600;
+}
+
+/* Area / group frame. The fill comes from the area's data; in dark mode a
+   pastel fill is blended into the canvas so it reads as a tint, not a slab. */
+.area-frame {
+  background-color: var(--area-fill);
+  border: 1px solid var(--area-border);
+}
+[data-theme="dark"] .area-frame {
+  background-color: color-mix(in srgb, var(--area-fill) 10%, var(--canvas-bg));
+  border-color: color-mix(in srgb, var(--area-border) 30%, var(--border));
+}
+[data-theme="dark"] .area-frame.is-neutral {
+  background-color: var(--area-fill);
+  border-color: var(--area-border);
+}
+
+/* ===== Motion =====
+   A few short, quiet animations (≤ 0.3s, except the chart line draw).
+   All of them are switched off for people who prefer reduced motion. */
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes pop-in {
+  from { opacity: 0; transform: scale(0.97); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes shimmer {
+  from { background-position: 100% 0; }
+  to { background-position: -100% 0; }
+}
+@keyframes draw-line {
+  to { stroke-dashoffset: 0; }
+}
+@keyframes dash-flow {
+  to { stroke-dashoffset: -10; }
+}
+/* New output appearing in a box; details opening in a card. */
+.anim-fade-up { animation: fade-up 0.24s ease-out both; }
+/* Menus / popovers / help card opening. */
+.anim-pop { animation: pop-in 0.16s ease-out both; transform-origin: top right; }
+.anim-pop.from-bottom-left { transform-origin: bottom left; }
+/* Skeleton lines while a box is running. */
+.skeleton-line {
+  height: 10px;
+  border-radius: 6px;
+  background: linear-gradient(90deg, var(--surface-muted) 0%, var(--surface-sunken) 50%, var(--surface-muted) 100%);
+  background-size: 200% 100%;
+  animation: shimmer 1.3s linear infinite;
+}
+/* Journey chart: line draws in, area and points follow. */
+.chart-line {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: draw-line 0.9s ease-out 0.05s forwards;
+}
+.chart-area { animation: fade-in 0.5s ease-out 0.35s both; }
+.chart-point {
+  transform-box: fill-box;
+  transform-origin: center;
+  /* "backwards" (not "both") so the hover scale below still applies once
+     the pop-in has finished. */
+  animation: pop-in 0.25s ease-out backwards;
+  transition: transform 0.15s ease;
+  cursor: default;
+}
+.chart-point:hover { transform: scale(1.3); }
+.chart-band { animation: fade-in 0.4s ease-out both; }
+/* Buttons: a slight press (transition set on .btn below). */
+.btn:active:not(:disabled) { transform: scale(0.98); }
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-delay: 0s !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+/* Tooltip above a box icon (components/ui/Tooltip.tsx) */
+.tip {
+  position: relative;
+  display: inline-flex;
+  flex: none;
+  border-radius: 8px;
+  outline: none;
+  cursor: help;
+}
+.tip:focus-visible { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--text-faint); }
+.tip-bubble {
+  position: absolute;
+  bottom: calc(100% + 10px);
+  left: -6px;
+  z-index: 60;
+  width: max-content;
+  max-width: 280px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--ink);
+  color: var(--on-ink);
+  font-family: var(--font-sans);
+  font-size: 12.5px;
+  font-weight: 400;
+  line-height: 1.45;
+  letter-spacing: 0;
+  text-transform: none;
+  text-align: left;
+  white-space: normal;
+  box-shadow: var(--shadow-float);
+  opacity: 0;
+  transform: translateY(3px);
+  pointer-events: none;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+.tip-bubble.is-end { left: auto; right: -6px; }
+.tip-bubble::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: 16px;
+  border: 6px solid transparent;
+  border-top-color: var(--ink);
+}
+.tip-bubble.is-end::after { left: auto; right: 16px; }
+.tip:hover .tip-bubble,
+.tip:focus-visible .tip-bubble,
+.tip:focus .tip-bubble {
+  opacity: 1;
+  transform: translateY(0);
+  transition-delay: 0.15s;
+}
+
+/* Mono uppercase section label */
+.mono-label {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+/* Shared buttons inside nodes */
+.btn {
+  height: 34px;
+  padding: 0 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color 0.15s ease, transform 0.08s ease;
+}
+.btn:disabled { cursor: not-allowed; opacity: 0.6; }
+.btn-primary { border: none; background: var(--ink); color: var(--on-ink); }
+.btn-primary:hover:not(:disabled) { background: var(--ink-hover); }
+.btn-secondary {
+  border: 1px solid var(--border-control);
+  background: var(--surface);
+  color: var(--ink);
+}
+.btn-secondary:hover:not(:disabled) { background: var(--surface-hover); }
+.btn-sm { height: 30px; padding: 0 12px; font-size: 12.5px; gap: 6px; }
+.btn-icon { width: 30px; padding: 0; }
+.btn-secondary.is-active { background: var(--surface-muted); border-color: var(--text-faint); }
+
+/* Accordion caret */
+.caret {
+  width: 14px;
+  height: 14px;
+  flex: none;
+  color: var(--icon-muted);
+  transition: transform 0.15s ease;
+}
+.caret.is-open { transform: rotate(90deg); }
+
+/* Small chips */
+.chip {
+  height: 20px;
+  flex: none;
+  box-sizing: border-box;
+  padding: 0 7px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border-radius: 5px;
+  font-size: 11.5px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.chip-amber { background: var(--amber-bg); color: var(--amber-text); }
+.chip-red { background: var(--red-bg); color: var(--red-text); }
+.chip-violet { height: 22px; padding: 0 8px; background: var(--violet-bg); color: var(--violet-text); font-size: 12px; font-weight: 500; }
+.chip-neutral { background: var(--surface-muted); color: var(--quote-text); font-weight: 400; font-size: 12px; }
+.chip-low { background: var(--low-bg); color: var(--low-text); }
+/* A Theme Finder mark (a positive theme), so in that step's colour. */
+.chip-insight {
+  background: color-mix(in srgb, var(--step-insight) 12%, var(--surface));
+  color: var(--step-insight);
+}
+
+/* Shared read-only quote box */
+.quote-box {
+  background: var(--surface-sunken);
+  border-radius: 8px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--quote-text);
+}
+
+/* Expandable cards used by every output (themes, stages, risks,
+   recommendations, research questions). Each item is a clearly outlined
+   rounded card at all times — not only on hover — and the open card lifts
+   slightly with a stronger border. */
+.acc-row {
+  min-width: 0;
+  background: var(--surface);
+  border: 1px solid var(--divider-soft);
+  border-radius: 10px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.acc-row.is-open {
+  border-color: var(--border);
+  box-shadow: var(--shadow-card);
+}
+.acc-head {
+  width: 100%;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 11px;
+  text-align: left;
+  cursor: pointer;
+  border-radius: 9px;
+  background: transparent;
+  border: none;
+  font: inherit;
+  color: inherit;
+  transition: background-color 0.15s ease;
+}
+.acc-head:hover { background: var(--surface-sunken); }
+.acc-row.is-open > .acc-head { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+
+/* Chips whose text can be long (evidence trace, research links) wrap
+   inside the card instead of overflowing it. */
+.chip.is-wrap {
+  height: auto;
+  min-height: 22px;
+  flex: 0 1 auto;
+  max-width: 100%;
+  padding: 3px 8px;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-align: left;
+}
+
+/* ===== Dark-mode compatibility for screens not yet on the tokens =====
+   Admin / Facilitator boards, modals, the checklist, the help card and the
+   PDF summary still use raw Tailwind slate/white classes. In dark mode those
+   classes are mapped onto the tokens so the screens stay readable. The
+   landing page and post-it notes keep their own fixed look. */
+[data-theme="dark"] .app-shell :is(.bg-white, .bg-slate-50, .bg-gray-50) { background-color: var(--surface) !important; }
+[data-theme="dark"] .app-shell :is(.bg-slate-100, .bg-gray-100, .bg-slate-50\/50, .bg-slate-100\/70, .bg-slate-100\/80) { background-color: var(--surface-muted) !important; }
+[data-theme="dark"] .app-shell :is(.bg-slate-200, .bg-gray-200) { background-color: var(--border-control) !important; }
+[data-theme="dark"] .app-shell :is(.bg-white\/80, .bg-white\/90, .bg-white\/95) { background-color: var(--surface) !important; }
+[data-theme="dark"] .app-shell :is(.hover\:bg-slate-50, .hover\:bg-slate-100, .hover\:bg-gray-50, .hover\:bg-gray-100):hover { background-color: var(--surface-hover) !important; }
+[data-theme="dark"] .app-shell :is(.hover\:bg-slate-200):hover { background-color: var(--border-control) !important; }
+[data-theme="dark"] .app-shell :is(.text-slate-900, .text-slate-800, .text-gray-900, .text-gray-800, .text-black) { color: var(--ink) !important; }
+[data-theme="dark"] .app-shell :is(.text-slate-700, .text-slate-600, .text-gray-700, .text-gray-600) { color: var(--text-2) !important; }
+[data-theme="dark"] .app-shell :is(.text-slate-500, .text-gray-500) { color: var(--text-muted) !important; }
+[data-theme="dark"] .app-shell :is(.text-slate-400, .text-slate-300, .text-gray-400) { color: var(--text-faint) !important; }
+[data-theme="dark"] .app-shell :is(.border-slate-100, .border-slate-200, .border-slate-300, .border-gray-200, .border-gray-300, .border-slate-200\/70, .border-slate-200\/80, .border-black\/5) { border-color: var(--border) !important; }
+[data-theme="dark"] .app-shell :is(.divide-slate-100, .divide-slate-200) > * + * { border-color: var(--border) !important; }
+[data-theme="dark"] .app-shell :is(input, textarea, select):not(.note-textarea) { color: var(--ink); }
+[data-theme="dark"] .app-shell .markdown-output :is(code, th) { background-color: var(--surface-muted) !important; }
+[data-theme="dark"] .app-shell .note-node :is(.text-slate-500, .text-slate-600, .text-slate-700) { color: #422006 !important; }
 
 /* ===== App chrome (header / tools) ===== */
 
 .app-bar {
-  background: rgba(255, 255, 255, 0.92);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  border-bottom: 1px solid #e2e8f0;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  background: var(--surface);
+  border-bottom: 1px solid var(--appbar-border);
   /* Notched-device safe areas (landscape iPad in fullscreen kiosk mode). */
   height: auto;
   min-height: calc(56px + env(safe-area-inset-top));
@@ -90,11 +640,11 @@ select,
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 15px;
-  background: linear-gradient(135deg, #6366f1, #8b5cf6);
-  box-shadow:
-    0 1px 3px rgba(79, 70, 229, 0.35),
-    inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--on-ink);
+  background: var(--ink);
 }
 
 /* Board save-status indicator (dot + label in the header). */
@@ -116,40 +666,80 @@ select,
   50% { opacity: 0.35; }
 }
 
-/* React Flow controls + minimap — matched to the chrome. */
+/* React Flow zoom controls — a floating pill at the bottom centre. */
 .react-flow__controls {
+  padding: 4px;
+  gap: 2px;
+  background: var(--surface);
+  border: 1px solid var(--border);
   border-radius: 10px;
-  overflow: hidden;
-  border: 1px solid #e2e8f0;
-  box-shadow: 0 4px 12px -2px rgba(15, 23, 42, 0.12);
+  box-shadow: var(--shadow-float);
 }
 .react-flow__controls-button {
-  background: #fff;
-  border-bottom: 1px solid #eef2f7;
-  color: #475569;
-  width: 26px;
-  height: 26px;
+  background: transparent;
+  border: none;
+  border-radius: 7px;
+  color: var(--text-3);
+  width: 30px;
+  height: 30px;
 }
-.react-flow__controls-button:last-child { border-bottom: none; }
-.react-flow__controls-button:hover { background: #f8fafc; }
-.react-flow__controls-button svg { fill: currentColor; }
+.react-flow__controls-button:hover { background: var(--surface-sunken); }
+.react-flow__controls-button svg { fill: currentColor; max-width: 11px; max-height: 11px; }
 
 .react-flow__minimap {
+  background: var(--surface);
   border-radius: 10px;
   overflow: hidden;
-  border: 1px solid #e2e8f0;
-  box-shadow: 0 4px 12px -2px rgba(15, 23, 42, 0.12);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-float);
+}
+
+/* React Flow's own dark palette would repaint nodes/controls; the tokens
+   above already cover them, so only keep its pane background in sync. */
+.react-flow.dark {
+  --xy-background-color-default: var(--canvas-bg);
+  --xy-minimap-background-color-default: var(--surface);
+  --xy-node-background-color-default: transparent;
+  --xy-node-color-default: var(--ink);
+  --xy-node-border-default: none;
+  --xy-controls-button-background-color-default: transparent;
+  --xy-controls-button-border-color-default: transparent;
+  --xy-controls-button-color-default: var(--text-3);
+}
+
+/* Connectors: neutral 1.5px curves, no marching-ants animation. Edges into
+   a step that has not run yet get the dashed "waiting" style (Canvas.tsx). */
+.react-flow__edge-path {
+  stroke: var(--edge);
+  stroke-width: 1.5;
+}
+.react-flow__edge.animated .react-flow__edge-path {
+  stroke-dasharray: none;
+  animation: none;
+}
+.react-flow__edge.edge-waiting .react-flow__edge-path {
+  stroke: var(--edge-waiting);
+  stroke-dasharray: 4 5;
+}
+/* The connector feeding a box that is running shows data flowing in. */
+.react-flow__edge.edge-running .react-flow__edge-path {
+  stroke: var(--text-faint);
+  stroke-dasharray: 5 5;
+  animation: dash-flow 0.6s linear infinite;
+}
+.react-flow__edge.selected .react-flow__edge-path {
+  stroke: var(--ink);
 }
 
 /* Quiet, thin scrollbars everywhere. */
 * {
   scrollbar-width: thin;
-  scrollbar-color: #cbd5e1 transparent;
+  scrollbar-color: #cfd3d9 transparent;
 }
 *::-webkit-scrollbar { width: 8px; height: 8px; }
 *::-webkit-scrollbar-track { background: transparent; }
-*::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 8px; }
-*::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+*::-webkit-scrollbar-thumb { background: #cfd3d9; border-radius: 8px; }
+*::-webkit-scrollbar-thumb:hover { background: var(--icon-muted); }
 
 /* ===== Collaboration annotations (visually NOT pipeline boxes) ===== */
 
@@ -216,6 +806,21 @@ select,
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+/* Group-frame caption (demo board "RESEARCH INPUTS" / "AI RESEARCH
+   PIPELINE"): a label with the transparent colour renders as a mono
+   uppercase caption with no pill background. */
+.label-pill.is-group {
+  background: transparent !important;
+  box-shadow: none;
+  border: none;
+  padding: 4px 0;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-3);
 }
 .label-node.selected .label-pill {
   outline: 2px solid #64748b;
@@ -329,8 +934,8 @@ select,
   width: 10px !important;
   height: 10px !important;
   border-radius: 50%;
-  border: 2px solid #fff !important;
-  background: #64748b !important;
+  border: 2px solid var(--surface) !important;
+  background: var(--text-faint) !important;
 }
 .react-flow__resize-control.line {
   background: transparent !important;
@@ -476,6 +1081,23 @@ html {
   cursor: crosshair;
 }
 
+/* Ports: 14px circles on the header's centre line — 29px from the node's
+   outer top including the 1px border, i.e. 28px inside .box-node (their
+   positioned parent) — filled with the step colour. */
+.react-flow__handle.node-port {
+  width: 14px;
+  height: 14px;
+  min-width: 0;
+  min-height: 0;
+  box-sizing: border-box;
+  top: 28px;
+  border-radius: 50%;
+  border: 2.5px solid var(--surface);
+  box-shadow: 0 0 0 1px rgba(22, 24, 29, 0.2);
+  z-index: 3;
+}
+.react-flow__handle.node-port.react-flow__handle-left { left: -1px; }
+.react-flow__handle.node-port.react-flow__handle-right { right: -1px; }
 .react-flow__handle {
   width: 18px;
   height: 18px;

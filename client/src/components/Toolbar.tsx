@@ -1,91 +1,88 @@
 import { useState } from "react";
+import type { BoxType } from "../types.js";
+import { BOX_TYPES } from "../types.js";
+import { BOX_USAGE, STEP_STYLE } from "../lib/nodeView.js";
+import { BoxIcon, CloseIcon } from "./ui/icons.js";
 
 /**
- * Canvas help card ("How to use") — bottom-left, dismissible to a "?" pill.
+ * Canvas help card ("How to use") — bottom-left. Closed by default: it shows
+ * as a small "?" button and opens the walkthrough of the research flow.
  * Note: the E2E suite locates this card by finding a `rounded-xl` div whose
  * text includes "How to use" — keep both markers when restyling.
  */
+
+/** The walkthrough, in pipeline order (wording from the team's script). */
+const STEPS: { type: BoxType; label: string }[] = [
+  { type: "text", label: "Research inputs" },
+  { type: "insight", label: BOX_TYPES.insight.label },
+  { type: "journey", label: BOX_TYPES.journey.label },
+  { type: "safety", label: BOX_TYPES.safety.label },
+  { type: "coach", label: BOX_TYPES.coach.label },
+  { type: "summary", label: BOX_TYPES.summary.label },
+];
+
 export default function Toolbar() {
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useState(false);
 
   return (
     <div className="help-anchor absolute bottom-4 left-4 z-10">
       {open ? (
-        <div className="rounded-xl bg-white/95 backdrop-blur border border-slate-200 shadow-xl shadow-slate-900/10 p-4 w-[300px]">
+        <div className="anim-pop from-bottom-left rounded-xl bg-surface border border-line [box-shadow:var(--shadow-float)] p-4 w-[320px] max-h-[calc(100vh-140px)] overflow-y-auto">
           <div className="flex items-center justify-between mb-3">
-            <h2 className="text-[13px] font-semibold text-slate-700">How to use</h2>
+            <h2 className="m-0 text-[14px] font-semibold text-ink">How to use</h2>
             <button
               onClick={() => setOpen(false)}
-              className="w-6 h-6 flex items-center justify-center rounded text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition"
+              className="w-7 h-7 flex items-center justify-center rounded-md text-ink-icon hover:text-ink hover:bg-surface-sunken transition"
               title="Hide help"
+              aria-label="Hide help"
             >
-              ✕
+              <CloseIcon />
             </button>
           </div>
 
-          <ol className="space-y-2.5">
-            {[
-              <>
-                Add boxes from the panel on the right (toggle with{" "}
-                <span className="font-medium text-slate-700">+ Add Box</span>).
-              </>,
-              <>
-                Type your idea in an{" "}
-                <span className="font-medium text-amber-600">💡 Idea</span> box, or upload an image
-                in an <span className="font-medium text-emerald-600">🖼️ Image</span> box.
-              </>,
-              <>
-                Drag from a box's right edge <span className="text-slate-400">●</span> to another
-                box's left edge <span className="text-slate-400">●</span> to connect them.
-              </>,
-              <>
-                Click <span className="font-medium text-slate-700">▶ Run</span> on any AI box
-                (Research, PRD, Summarize, Cartoon, Slides, Code) to generate output.
-              </>,
-              <>
-                Click <span className="font-medium text-slate-700">⚙</span> to edit the AI prompt —
-                reference connected inputs with <code className="text-[10px] bg-slate-100 px-1 py-0.5 rounded font-mono">{"{{input_1}}"}</code>,{" "}
-                <code className="text-[10px] bg-slate-100 px-1 py-0.5 rounded font-mono">{"{{inputs}}"}</code>.
-              </>,
-              <>
-                Click a box, then drag the corner handles to resize it.
-              </>,
-            ].map((step, i) => (
-              <li key={i} className="flex gap-2.5 text-xs text-slate-600 leading-relaxed">
-                <span className="w-4 h-4 mt-0.5 rounded-full bg-slate-100 text-slate-500 text-[9px] font-semibold flex items-center justify-center flex-shrink-0">
-                  {i + 1}
+          <ol className="m-0 p-0 list-none flex flex-col gap-3">
+            {STEPS.map((step) => (
+              <li key={step.type} className="flex gap-2.5">
+                <span
+                  className="node-tile !w-7 !h-7 !rounded-[8px] mt-0.5"
+                  style={{ "--tile-color": STEP_STYLE[step.type]?.color ?? "var(--ink)" } as React.CSSProperties}
+                  aria-hidden
+                >
+                  <BoxIcon type={step.type} size={14} />
                 </span>
-                <span>{step}</span>
+                <span className="min-w-0">
+                  <span className="block text-[13px] font-semibold text-ink">{step.label}</span>
+                  <span className="block text-[12.5px] leading-[1.45] text-ink-3">
+                    {step.type === "text"
+                      ? "Start here with your research material: paste interview notes into Text Context or upload a TXT, PDF or Word document. P1–P4 are test transcripts for this demo."
+                      : BOX_USAGE[step.type]}
+                  </span>
+                </span>
               </li>
             ))}
           </ol>
 
-          <div className="mt-3 pt-3 border-t border-slate-100 space-y-1.5">
-            <p className="text-[11px] text-slate-500 leading-snug">
-              <span className="font-semibold text-pink-600">🎨 Cartoon</span> — connect an Image box
-              to cartoonify it, or an Idea box for text-to-image.
+          <div className="mt-3.5 pt-3 border-t border-line-divider flex flex-col gap-1.5 text-[12px] leading-[1.45] text-ink-muted">
+            <p className="m-0">
+              Click <span className="font-semibold text-ink">Run</span> on {BOX_TYPES.insight.label}, then on each next step.
+              Drag between the dots on box edges to connect boxes.
             </p>
-            <p className="text-[11px] text-slate-500 leading-snug">
-              <span className="font-semibold text-orange-500">📊 Slides</span> — connect Research
-              boxes to generate a navigable pitch deck.
+            <p className="m-0">
+              Hold <span className="font-mono text-[11px] text-ink-2">Ctrl</span> /{" "}
+              <span className="font-mono text-[11px] text-ink-2">⌘</span> while dragging a box to take it out of its group.
             </p>
-            <p className="text-[11px] text-slate-500 leading-snug">
-              <span className="font-semibold text-cyan-600">💻 Code</span> — connect a PRD or
-              Research box for a live React prototype.
-            </p>
-          </div>
-
-          <div className="mt-3 pt-2.5 border-t border-slate-100 text-[10px] text-slate-400">
-            Boards auto-save — to the browser when signed out, to the cloud when signed in.
           </div>
         </div>
       ) : (
         <button
           onClick={() => setOpen(true)}
-          className="rounded-full bg-white shadow-lg border border-slate-200 w-10 h-10 flex items-center justify-center text-slate-500 hover:text-slate-700 hover:border-slate-300 transition"
+          className="rounded-full bg-surface border border-line [box-shadow:var(--shadow-float)] h-10 pl-3 pr-3.5 flex items-center gap-2 text-[13px] font-medium text-ink-3 hover:text-ink transition-colors"
           title="Show help"
         >
-          ?
+          <span className="w-5 h-5 rounded-full bg-ink text-on-ink grid place-items-center font-mono text-[11px] font-semibold">
+            ?
+          </span>
+          How to use
         </button>
       )}
     </div>

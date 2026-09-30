@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { MIN_AREA_SIZE, isValidAreaSize, normalizeRect } from "./areas.js";
+import { MIN_AREA_SIZE, detachFromFrames, fitGroupFrames, isValidAreaSize, normalizeRect } from "./areas.js";
 
 describe("normalizeRect", () => {
   it("anchors top-left for a left→right, up→down drag", () => {
@@ -58,5 +58,57 @@ describe("isValidAreaSize", () => {
     expect(isValidAreaSize({ x: 0, y: 0, width: 0, height: 0 })).toBe(false);
     expect(isValidAreaSize({ x: 0, y: 0, width: 10, height: 400 })).toBe(false);
     expect(isValidAreaSize({ x: 0, y: 0, width: 400, height: 10 })).toBe(false);
+  });
+});
+describe("fitGroupFrames", () => {
+  const frame = {
+    id: "f",
+    position: { x: 0, y: 0 },
+    style: { width: 100, height: 100 },
+    data: { fit: { ids: ["a", "b"], pad: 20, header: 46 } },
+  };
+  it("places and sizes a frame around its measured boxes", () => {
+    const nodes = [
+      frame,
+      { id: "a", position: { x: 20, y: 46 }, measured: { width: 300, height: 200 } },
+      { id: "b", position: { x: 400, y: 46 }, measured: { width: 300, height: 500 } },
+    ];
+    const out = fitGroupFrames(nodes as any)[0] as any;
+    expect(out.position).toEqual({ x: 0, y: 0 });
+    expect(out.style).toMatchObject({ width: 720, height: 566 });
+  });
+  it("follows a box moved further out in any direction", () => {
+    const nodes = [
+      frame,
+      { id: "a", position: { x: -100, y: -50 }, measured: { width: 300, height: 200 } },
+      { id: "b", position: { x: 400, y: 46 }, measured: { width: 300, height: 500 } },
+    ];
+    const out = fitGroupFrames(nodes as any)[0] as any;
+    expect(out.position).toEqual({ x: -120, y: -96 });
+    expect(out.style).toMatchObject({ width: 840, height: 662 });
+  });
+  it("is a fixed container: not selectable, draggable, or hit by the pointer", () => {
+    const out = fitGroupFrames([frame] as any)[0] as any;
+    expect(out).toMatchObject({ draggable: false, selectable: false, focusable: false });
+    expect(out.style.pointerEvents).toBe("none");
+  });
+  it("keeps the stored box until the boxes are measured", () => {
+    const nodes = [frame, { id: "a", position: { x: 20, y: 46 } }];
+    const out = fitGroupFrames(nodes as any)[0] as any;
+    expect(out.position).toEqual(frame.position);
+    expect(out.style).toMatchObject({ width: 100, height: 100 });
+  });
+});
+
+describe("detachFromFrames", () => {
+  const frame = { id: "f", data: { fill: "x", fit: { ids: ["a", "b"], pad: 20 } } };
+  it("removes the box from frames that hug it", () => {
+    const out = detachFromFrames([frame, { id: "a" }], "a");
+    expect((out[0] as any).data.fit.ids).toEqual(["b"]);
+    expect((out[0] as any).data.fill).toBe("x");
+  });
+  it("returns the same array when the box isn't in any frame", () => {
+    const nodes = [frame, { id: "z" }];
+    expect(detachFromFrames(nodes, "z")).toBe(nodes);
   });
 });

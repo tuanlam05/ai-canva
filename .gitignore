@@ -7,3 +7,9 @@ dist/
 .firebase/
 test-stitch*
 *.tsbuildinfo
+
+# Downloaded PDF Summary exports
+research-summary*.pdf
+
+# Design handoff archive (kept locally, removed from the repo)
+Research Canvas Restyle.zip

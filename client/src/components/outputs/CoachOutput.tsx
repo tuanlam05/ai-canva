@@ -1,11 +1,16 @@
 import { useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
 import type { Risk } from "../../types";
 import { useBoardStore } from "../../store/boardStore";
+import { AlertIcon, CaretIcon } from "../ui/icons";
 
 interface CoachOutputProps {
   content: string;
   boxId: string;
+  /**
+   * An earlier version (see VersionHistory): every card, and no review state,
+   * since the Safety Risk Review decisions belong to its current version.
+   */
+  readOnly?: boolean;
 }
 
 interface CoachGuidance {
@@ -30,20 +35,16 @@ interface CoachOutputData {
   research_next: ResearchNext[];
 }
 
-const CATEGORY_STYLES: Record<string, string> = {
-  "Communication Risk": "bg-red-100 text-red-800",
-  "Continuity of Care Risk": "bg-amber-100 text-amber-800",
-  "Medication Risk": "bg-purple-100 text-purple-800",
-  "Access Risk": "bg-blue-100 text-blue-800",
-  "Data Accuracy Risk": "bg-teal-100 text-teal-800",
-};
-
-function categoryStyle(category: string): string {
-  return CATEGORY_STYLES[category] ?? "bg-slate-100 text-slate-700";
-}
-
-export default function CoachOutput({ content, boxId }: CoachOutputProps) {
+/**
+ * UX Coach recommendations as an accordion of cards. Coach items carry no
+ * decisions of their own: each card mirrors the Safety Reviewer decision on
+ * the risk it responds to (dismissed risks are hidden, as before). Earlier
+ * versions show every card without that review state.
+ */
+export default function CoachOutput({ content, boxId, readOnly = false }: CoachOutputProps) {
   const [expandedResearch, setExpandedResearch] = useState<string | null>(null);
+  // Accordion (view state only); every card starts closed.
+  const [openItem, setOpenItem] = useState<string | null>(null);
 
   const edges = useBoardStore((s) => s.edges);
   const boxData = useBoardStore((s) => s.boxData);
@@ -82,24 +83,28 @@ export default function CoachOutput({ content, boxId }: CoachOutputProps) {
 
   if (parseError) {
     return (
-      <div className="text-amber-600 text-base p-3 bg-amber-50 rounded-lg">
-        ⚠️ Could not parse structured output. Showing raw text below.
-        <pre className="mt-3 whitespace-pre-wrap text-sm leading-6 text-slate-500">
+      <div className="m-3 p-3 rounded-lg bg-[color:var(--amber-bg)] text-[color:var(--amber-text)] text-[13px]">
+        <span className="flex items-center gap-1.5 font-semibold">
+          <AlertIcon /> Could not parse structured output. Showing raw text below.
+        </span>
+        <pre className="mt-2 whitespace-pre-wrap font-mono text-[11.5px] leading-5 text-ink-3">
           {content}
         </pre>
       </div>
     );
   }
 
-  const visibleGuidance = guidance.filter((item) => {
-    const risk = risks.find((r) => r.id === item.risk_id);
+  const visibleGuidance = readOnly
+    ? guidance
+    : guidance.filter((item) => {
+        const risk = risks.find((r) => r.id === item.risk_id);
 
-    if (!risk) return false;
+        if (!risk) return false;
 
-    const decision = approvals?.[item.risk_id]?.status;
+        const decision = approvals?.[item.risk_id]?.status;
 
-    return decision !== "dismissed";
-  });
+        return decision !== "dismissed";
+      });
 
   const liveRisks = risks.filter(
     (risk) => approvals?.[risk.id]?.status !== "dismissed",
@@ -107,130 +112,127 @@ export default function CoachOutput({ content, boxId }: CoachOutputProps) {
 
   if (guidance.length === 0 && researchNext.length === 0) {
     return (
-      <div className="text-slate-400 text-base py-6 px-4 text-center">
-        {liveRisks.length === 0
-          ? "No safety flags were passed on, so there is nothing to advise on. Run Patient Safety Reviewer first, or restore a dismissed flag."
-          : "No guidance produced."}
+      <div className="text-ink-muted text-[13px] leading-[1.5] py-8 px-5 text-center">
+        {readOnly
+          ? "This version has no guidance."
+          : liveRisks.length === 0
+            ? "No safety risks were passed on, so there is nothing to advise on. Run Safety Risk Review first, or restore a dismissed risk."
+            : "No guidance produced."}
       </div>
     );
   }
 
   return (
-    <div className="space-y-3 nowheel">
-      <div className="w-full rounded-md bg-[#F3FAF9] border-[#F1F9E3] border-2 p-3">
-        <p className="text-[#2F6F68] font-inter text-sm leading-6">
-          Advisory only. Nothing here changes the pipeline output.
-        </p>
+    <div className="nowheel p-2.5 flex flex-col gap-1.5 min-w-0">
+      <div className="mx-0.5 mb-1 px-3 py-2 rounded-lg bg-surface-sunken text-[12.5px] leading-[1.5] text-ink-3">
+        Advisory only. Nothing here changes the pipeline output.
       </div>
 
       {visibleGuidance.length === 0 && researchNext.length === 0 && (
-        <div className="text-slate-400 text-base py-6 text-center">
-          All guidance has been dismissed in Safety Reviewer.
+        <div className="text-ink-muted text-[13px] py-6 text-center">
+          All guidance has been dismissed in Safety Risk Review.
         </div>
       )}
 
-      <AnimatePresence initial={false}>
-        {visibleGuidance.map((item) => {
-          const risk = risks.find((r) => r.id === item.risk_id);
+      {visibleGuidance.map((item) => {
+        const risk = risks.find((r) => r.id === item.risk_id);
 
-          if (!risk) return null;
+        if (!risk && !readOnly) return null;
 
-          const decision = approvals?.[item.risk_id]?.status;
-          const isDismissed = decision === "dismissed";
+        const decision = approvals?.[item.risk_id]?.status;
+        const isOpen = openItem === item.id;
 
-          return (
-            <motion.div
-              key={item.id}
-              layout
-              initial={{ opacity: 0, y: -4 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -4 }}
-              transition={{ duration: 0.15 }}
-              className="border border-slate-200 rounded-lg p-4 space-y-4 bg-white"
+        return (
+          <div
+            key={item.id}
+            className={"acc-row" + (isOpen ? " is-open" : "")}
+          >
+            <button
+              type="button"
+              aria-expanded={isOpen}
+              onClick={() => setOpenItem(isOpen ? null : item.id)}
+              className="acc-head nodrag !items-start"
             >
-              <div className="flex items-center gap-2 flex-wrap">
-                <span
-                  className={
-                    "text-sm font-bold px-2.5 py-1 rounded-md " +
-                    categoryStyle(risk.category)
-                  }
-                >
-                  Responds to · {risk.category}
+              <span className="mt-[3px]">
+                <CaretIcon className={"caret" + (isOpen ? " is-open" : "")} />
+              </span>
+              <div className="flex-1 min-w-0 flex flex-col gap-1.5">
+                {!readOnly && risk && (
+                  <span className="chip chip-red is-wrap self-start !text-[11px]">
+                    Responds to · {risk.category}
+                  </span>
+                )}
+                <span className="text-[13.5px] font-semibold leading-[1.4] text-ink [text-wrap:pretty] [overflow-wrap:anywhere]">
+                  {item.plain_summary}
                 </span>
               </div>
-
-              <p className="text-base leading-6 font-semibold text-slate-800">
-                {item.plain_summary}
-              </p>
-
-              <div className="mt-2">
-                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide">
-                  Affected journey stage
-                </p>
-
-                <p className="text-sm leading-6 text-slate-600 mt-1">
-                  {item.stage}
-                </p>
-              </div>
-
-              <div className="mt-3">
-                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide">
-                  Why it matters
-                </p>
-
-                <p className="text-sm leading-6 text-slate-600 mt-1">
-                  {item.why_it_matters}
-                </p>
-              </div>
-
-              {item.next_steps.length > 0 && (
-                <div className="mt-3">
-                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide">
-                    Next steps
-                  </p>
-
-                  <ul className="mt-2 space-y-2">
-                    {item.next_steps.map((step, index) => (
-                      <li
-                        key={index}
-                        className="text-sm leading-6 text-slate-600 flex gap-2"
-                      >
-                        <span className="text-[#84cc16] mt-0.5">•</span>
-                        <span>{step}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
+              {readOnly ? null : decision === "approved" ? (
+                <span className="flex-none mt-0.5 font-mono text-[11px] font-semibold text-[color:var(--step-coach)]">
+                  Approved
+                </span>
+              ) : (
+                <span
+                  className="flex-none mt-0.5 font-mono text-[11px] font-semibold text-[color:var(--red-text)]"
+                  title="Human review required — approve or dismiss this risk in Safety Risk Review"
+                >
+                  Review
+                </span>
               )}
+            </button>
 
-              <div className="mt-3 flex items-center gap-2 flex-wrap">
-                <span
-                  className={
-                    "text-sm px-2.5 py-1 rounded-md border " +
-                    (decision === "approved"
-                      ? "border-green-300 text-green-700"
-                      : isDismissed
-                        ? "border-slate-300 text-slate-500"
-                        : "border-red-300 text-red-600")
-                  }
-                >
-                  {decision === "approved"
-                    ? "Approved"
-                    : isDismissed
-                      ? "Dismissed"
-                      : "Human review required"}
-                </span>
+            {isOpen && (
+              <div className="pl-[35px] pr-3 pt-0.5 pb-3 flex flex-col gap-3 min-w-0 anim-fade-up">
+                <div className="flex items-center flex-wrap gap-2 text-[12.5px] text-ink-3">
+                  Affected journey stage
+                  <span className="chip chip-violet">{item.stage}</span>
+                </div>
+
+                <div>
+                  <div className="mono-label">Why it matters</div>
+                  <p className="mt-1 mb-0 text-[13px] leading-[1.5] text-ink-2 [text-wrap:pretty]">
+                    {item.why_it_matters}
+                  </p>
+                </div>
+
+                {item.next_steps.length > 0 && (
+                  <div>
+                    <div className="mono-label">Next steps</div>
+                    <ol className="m-0 mt-1.5 p-0 list-none flex flex-col gap-1.5">
+                      {item.next_steps.map((step, index) => (
+                        <li
+                          key={index}
+                          className="flex gap-[9px] items-start text-[13px] leading-[1.5] text-ink-2"
+                        >
+                          <span className="w-[18px] h-[18px] flex-none mt-px rounded-full grid place-items-center font-mono text-[10.5px] font-semibold bg-[color:var(--green-bg)] text-[color:var(--step-coach)]">
+                            {index + 1}
+                          </span>
+                          <span className="[text-wrap:pretty]">{step}</span>
+                        </li>
+                      ))}
+                    </ol>
+                  </div>
+                )}
+
+                {!readOnly && (
+                  <div className="flex items-center gap-2 flex-wrap text-[12px] text-ink-muted">
+                    {decision === "approved" ? (
+                      <span className="chip chip-neutral !font-medium">Approved in Safety Risk Review</span>
+                    ) : (
+                      <span className="chip !h-[22px] !px-2 font-medium border border-[color:var(--red-border)] text-[color:var(--red-text)]">
+                        Human review required
+                      </span>
+                    )}
+                  </div>
+                )}
               </div>
-            </motion.div>
-          );
-        })}
-      </AnimatePresence>
+            )}
+          </div>
+        );
+      })}
 
       {researchNext.length > 0 && (
-        <div className="border border-slate-200 rounded-lg p-4 bg-white space-y-4">
-          <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide">
-            Research next
-          </p>
+        <div className="mt-2 pt-2 border-t border-line-divider flex flex-col gap-1.5 min-w-0">
+          <div className="mono-label px-2.5 pt-1 pb-1">Research next</div>
 
           {researchNext.map((research) => {
             const isExpanded = expandedResearch === research.id;
@@ -238,60 +240,48 @@ export default function CoachOutput({ content, boxId }: CoachOutputProps) {
             return (
               <div
                 key={research.id}
-                className="border border-slate-100 rounded-md"
+                className={"acc-row" + (isExpanded ? " is-open" : "")}
               >
                 <button
                   type="button"
+                  aria-expanded={isExpanded}
                   onClick={() =>
                     setExpandedResearch(isExpanded ? null : research.id)
                   }
-                  className="w-full text-left p-3 hover:bg-slate-50 rounded-md transition"
+                  className="acc-head nodrag !items-start"
                 >
-                  <div className="flex items-start justify-between gap-3">
-                    <p className="text-base leading-6 font-medium text-slate-700">
-                      {research.question}
-                    </p>
-
-                    <span className="text-sm text-slate-400 shrink-0">
-                      {isExpanded ? "−" : "+"}
-                    </span>
-                  </div>
+                  <span className="mt-[3px]">
+                    <CaretIcon className={"caret" + (isExpanded ? " is-open" : "")} />
+                  </span>
+                  <span className="flex-1 min-w-0 text-[13.5px] leading-[1.4] font-medium text-ink [text-wrap:pretty] [overflow-wrap:anywhere]">
+                    {research.question}
+                  </span>
                 </button>
 
-                <AnimatePresence initial={false}>
-                  {isExpanded && (
-                    <motion.div
-                      initial={{ opacity: 0, height: 0 }}
-                      animate={{ opacity: 1, height: "auto" }}
-                      exit={{ opacity: 0, height: 0 }}
-                      transition={{ duration: 0.15 }}
-                      className="overflow-hidden"
-                    >
-                      <div className="px-3 pb-3">
-                        <p className="text-sm leading-6 text-slate-600">
-                          {research.why}
-                        </p>
+                {isExpanded && (
+                  <div className="pl-[35px] pr-3 pt-0.5 pb-3 min-w-0 anim-fade-up">
+                    <p className="m-0 text-[13px] leading-[1.5] text-ink-2 [overflow-wrap:anywhere]">
+                      {research.why}
+                    </p>
 
-                        {research.risk_ids.length > 0 && (
-                          <div className="flex gap-2 flex-wrap mt-3">
-                            {research.risk_ids.map((riskId) => {
-                              const risk = risks.find((r) => r.id === riskId);
+                    {!readOnly && research.risk_ids.length > 0 && (
+                      <div className="flex gap-1.5 flex-wrap mt-2.5">
+                        {research.risk_ids.map((riskId) => {
+                          const risk = risks.find((r) => r.id === riskId);
 
-                              return (
-                                <span
-                                  key={riskId}
-                                  className="text-xs px-2 py-1 rounded-md bg-slate-100 text-slate-500"
-                                >
-                                  {risk?.summary ?? riskId}
-                                </span>
-                              );
-                            })}
-                          </div>
-                        )}
+                          return (
+                            <span
+                              key={riskId}
+                              className="chip chip-neutral is-wrap"
+                            >
+                              {risk?.summary ?? riskId}
+                            </span>
+                          );
+                        })}
                       </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
+                    )}
+                  </div>
+                )}
               </div>
             );
           })}

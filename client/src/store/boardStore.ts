@@ -46,7 +46,11 @@ import { getUserEmail } from "../lib/admin.js";
 import { useTokenStore } from "./tokenStore.js";
 import { filterApproved } from "../lib/approvals.js";
 import { hashInput } from "../lib/inputHash.ts";
+import { pendingUpstream } from "../lib/queue.js";
 import { buildDemoBoard } from "../lib/demoBoard.js";
+import { detachFromFrames } from "../lib/areas.js";
+import { createHistory, isUserPatch, restoreBoxData } from "../lib/history.js";
+import { addVersion, restoreVersion } from "../lib/versions.js";
 
 function makeId(): string {
   return `box-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
@@ -59,6 +63,15 @@ function scheduleSave() {
   saveTimer = setTimeout(() => {
     useBoardStore.getState().saveToFirestore();
   }, 1000);
+}
+
+// === Undo / redo (lib/history.ts) ===
+// Snapshots are taken BEFORE each user edit. Kept outside the store state so
+// they're never persisted or synced.
+const history = createHistory();
+function recordEdit(key: string) {
+  const { nodes, edges, boxData } = useBoardStore.getState();
+  history.record(key, { nodes, edges, boxData });
 }
 
 // === Collaboration helpers ===
@@ -225,6 +238,8 @@ interface BoardState {
     border: string,
   ) => string;
   setAreaColor: (id: string, fill: string, border: string) => void;
+  /** Takes a box out of any group frame that auto-fits around it. */
+  detachFromArea: (boxId: string) => void;
   setBoxName: (id: string, name: string) => void;
   deleteBox: (id: string) => void;
   runBox: (id: string) => Promise<void>;
@@ -246,7 +261,19 @@ interface BoardState {
    * Restores the showcase board to its starting state, discarding whatever
    * the last visitor did to it.
    */
-  resetDemoBoard: () => void;
+  resetDemoBoard: (opts?: { record?: boolean }) => void;
+  /** Undo / redo the user's last edit (Ctrl+Z / Ctrl+Shift+Z). */
+  undo: () => void;
+  redo: () => void;
+  /** Records an undo step for an edit made outside the store actions. */
+  recordHistory: (key: string) => void;
+  /** Forgets all undo steps (e.g. when a different board is loaded). */
+  clearHistory: () => void;
+  /**
+   * Bumped when the board is replaced wholesale (demo load / reset) so the
+   * canvas re-fits its view to the new boxes. Not persisted.
+   */
+  fitRequest: number;
   /** Programmatic edge creation — used by the Agent box to wire the boxes it
    *  makes. Dedupes and rejects self-connections like a manual connect. */
   connectBoxes: (sourceId: string, targetId: string) => boolean;
@@ -278,10 +305,59 @@ interface BoardState {
   cleanupPresence: () => void;
 }
 
+type UpstreamOutcome =
+  | { kind: "ready" }
+  | { kind: "cancelled" }
+  | { kind: "failed"; title: string };
+
+/**
+ * Resolves once every upstream box of a queued box has finished. Cancelled
+ * if the queued box is deleted or leaves the "queued" state; failed if an
+ * upstream box it was waiting on ends in an error.
+ */
+function waitForUpstream(id: string): Promise<UpstreamOutcome> {
+  return new Promise((resolve) => {
+    let waitingOn = new Set<string>();
+
+    const check = (): UpstreamOutcome | null => {
+      const { edges, boxData, nodes } = useBoardStore.getState();
+      if (boxData[id]?.status !== "queued") return { kind: "cancelled" };
+      for (const src of waitingOn) {
+        if (boxData[src]?.status === "error") {
+          const node = nodes.find((n) => n.id === src);
+          return {
+            kind: "failed",
+            title: (node?.data?.title as string) || "The previous box",
+          };
+        }
+      }
+      const pending = pendingUpstream(edges, boxData, id);
+      pending.forEach((src) => waitingOn.add(src));
+      // Stop tracking boxes that were disconnected meanwhile.
+      const upstream = new Set(
+        edges.filter((e) => e.target === id).map((e) => e.source),
+      );
+      waitingOn = new Set([...waitingOn].filter((src) => upstream.has(src)));
+      return pending.length === 0 ? { kind: "ready" } : null;
+    };
+
+    const first = check();
+    if (first) return resolve(first);
+    const unsubscribe = useBoardStore.subscribe(() => {
+      const outcome = check();
+      if (outcome) {
+        unsubscribe();
+        resolve(outcome);
+      }
+    });
+  });
+}
+
 export const useBoardStore = create<BoardState>()(
   persist(
     (set, get) => ({
       nodes: [],
+      fitRequest: 0,
       edges: [],
       boxData: {},
       currentBoardId: null,
@@ -292,16 +368,30 @@ export const useBoardStore = create<BoardState>()(
       activeUsers: [],
 
       onNodesChange: (changes) => {
+        // Undo steps for user edits only: dragging (one step per drag),
+        // resizing by hand, deleting. Selection and React Flow's own size
+        // measurements are not edits.
+        const move = changes.some((c) => c.type === "position");
+        const removed = changes.filter((c) => c.type === "remove");
+        const resized = changes.find(
+          (c) => c.type === "dimensions" && (c as any).setAttributes,
+        );
+        if (removed.length) recordEdit("remove:" + removed.map((c) => (c as any).id).join(","));
+        else if (resized) recordEdit("resize:" + (resized as any).id);
+        else if (move) recordEdit("move");
         set({ nodes: applyNodeChanges(changes, get().nodes) });
         scheduleSave();
       },
 
       onEdgesChange: (changes) => {
+        const removed = changes.filter((c) => c.type === "remove");
+        if (removed.length) recordEdit("edge-remove:" + removed.map((c) => (c as any).id).join(","));
         set({ edges: applyEdgeChanges(changes, get().edges) });
         scheduleSave();
       },
 
       onConnect: (connection) => {
+        recordEdit(`connect:${connection.source}->${connection.target}`);
         set({
           edges: rfAddEdge({ ...connection, animated: true }, get().edges),
         });
@@ -310,6 +400,7 @@ export const useBoardStore = create<BoardState>()(
 
       addBox: (type, position) => {
         const id = makeId();
+        recordEdit("add:" + id);
         const meta = BOX_TYPES[type];
         const node: Node = {
           id,
@@ -356,14 +447,14 @@ export const useBoardStore = create<BoardState>()(
 
       addArea: (rect, fill, border) => {
         const id = makeId().replace("box-", "area-");
+        recordEdit("add:" + id);
         const node: Node = {
           id,
           type: "area",
           position: { x: rect.x, y: rect.y },
           style: { width: rect.width, height: rect.height },
-          // Areas render BELOW all boxes (default node z is 0; React Flow
-          // elevates the selected node by 1000 so a selected area's color
-          // dots stay reachable even where boxes overlap it).
+          // Areas render BELOW all boxes (default node z is 0), even when
+          // selected — see the stacking note in Canvas.tsx.
           zIndex: -1,
           data: { fill, border },
         };
@@ -373,6 +464,7 @@ export const useBoardStore = create<BoardState>()(
       },
 
       setAreaColor: (id, fill, border) => {
+        recordEdit("area-color:" + id);
         set({
           nodes: get().nodes.map((n) =>
             n.id === id ? { ...n, data: { ...n.data, fill, border } } : n,
@@ -381,9 +473,24 @@ export const useBoardStore = create<BoardState>()(
         scheduleSave();
       },
 
+      detachFromArea: (boxId) => {
+        const nodes = get().nodes;
+        const next = detachFromFrames(nodes, boxId);
+        if (next === nodes) return;
+        // Same key as the drag it starts, so detach + move undo together.
+        recordEdit("move");
+        set({ nodes: next });
+        scheduleSave();
+      },
+
       updateBoxData: (id, patch) => {
         const current = get().boxData[id];
         if (!current) return;
+        // Typing, uploads, prompt edits, approvals… are undoable; AI-run
+        // updates (status, output versions, tokens) are not.
+        if (isUserPatch(patch as Record<string, unknown>)) {
+          recordEdit(`data:${id}:${Object.keys(patch).sort().join(",")}`);
+        }
         set({
           boxData: {
             ...get().boxData,
@@ -403,17 +510,22 @@ export const useBoardStore = create<BoardState>()(
         });
       },
 
-      resetDemoBoard: () => {
+      resetDemoBoard: (opts) => {
+        // The Reset button is undoable; the automatic demo load is not.
+        if (opts?.record === false) history.clear();
+        else recordEdit("reset:" + Date.now());
         const demo = buildDemoBoard();
         set({
           nodes: demo.nodes,
           edges: demo.edges,
           boxData: demo.boxData,
+          fitRequest: get().fitRequest + 1,
         });
         scheduleSave();
       },
 
       setBoxName: (id, name) => {
+        recordEdit("name:" + id);
         set({
           nodes: get().nodes.map((n) =>
             n.id === id ? { ...n, data: { ...n.data, title: name } } : n,
@@ -423,6 +535,7 @@ export const useBoardStore = create<BoardState>()(
       },
 
       deleteBox: (id) => {
+        recordEdit("delete:" + id);
         set({
           nodes: get().nodes.filter((n) => n.id !== id),
           edges: get().edges.filter((e) => e.source !== id && e.target !== id),
@@ -432,6 +545,34 @@ export const useBoardStore = create<BoardState>()(
         });
         scheduleSave();
       },
+
+      undo: () => {
+        const { nodes, edges, boxData } = get();
+        const snap = history.undo({ nodes, edges, boxData });
+        if (!snap) return;
+        set({
+          nodes: snap.nodes,
+          edges: snap.edges,
+          boxData: restoreBoxData(snap.boxData, get().boxData),
+        });
+        scheduleSave();
+      },
+
+      redo: () => {
+        const { nodes, edges, boxData } = get();
+        const snap = history.redo({ nodes, edges, boxData });
+        if (!snap) return;
+        set({
+          nodes: snap.nodes,
+          edges: snap.edges,
+          boxData: restoreBoxData(snap.boxData, get().boxData),
+        });
+        scheduleSave();
+      },
+
+      recordHistory: (key) => recordEdit(key),
+
+      clearHistory: () => history.clear(),
 
       setBoxStatus: (id, status, error) => {
         get().updateBoxData(id, { status, error });
@@ -444,6 +585,7 @@ export const useBoardStore = create<BoardState>()(
           (e) => e.source === sourceId && e.target === targetId,
         );
         if (exists) return false;
+        recordEdit(`connect:${sourceId}->${targetId}`);
         set({
           edges: rfAddEdge(
             {
@@ -481,6 +623,7 @@ export const useBoardStore = create<BoardState>()(
       // --- Firestore board operations ---
 
       createNewBoard: async (title) => {
+        history.clear();
         const user = useAuthStore.getState().user;
         if (!user) return;
         const boardId = makeId();
@@ -510,6 +653,7 @@ export const useBoardStore = create<BoardState>()(
       },
 
       loadBoardFromFirestore: async (boardId) => {
+        history.clear();
         const board = await loadBoard(boardId);
         if (!board) return;
         console.log(
@@ -532,7 +676,12 @@ export const useBoardStore = create<BoardState>()(
         // boxes with interrupted generation will be flagged on load.
         Object.entries(board.boxData as Record<string, BoxData>).forEach(
           ([id, data]) => {
-            if (data.status === "running") {
+            if (data.status === "queued") {
+              get().updateBoxData(id, {
+                status: data.output?.trim() ? "done" : "idle",
+                error: undefined,
+              });
+            } else if (data.status === "running") {
               get().updateBoxData(id, {
                 output: "",
                 status: "error",
@@ -812,33 +961,14 @@ export const useBoardStore = create<BoardState>()(
       commitGeneratedOutput: (id: string, output: string) => {
         const current = get().boxData[id];
         if (!current) return;
-
-        const versionId = crypto.randomUUID();
-
-        const entry = {
-          id: versionId,
-          output,
-          timestamp: Date.now(),
-        };
-
-        get().updateBoxData(id, {
-          output,
-          history: [...(current.history ?? []), entry],
-          currentVersionId: versionId,
-        });
+        get().updateBoxData(id, addVersion(current, output, crypto.randomUUID(), Date.now()));
       },
 
       revertToVersion: (id: string, versionId: string) => {
         const data = get().boxData[id];
-        if (!data?.history) return;
-
-        const version = data.history.find((entry) => entry.id === versionId);
-        if (!version) return;
-
-        get().updateBoxData(id, {
-          output: version.output,
-          currentVersionId: version.id,
-        });
+        if (!data) return;
+        const patch = restoreVersion(data, versionId);
+        if (patch) get().updateBoxData(id, patch);
       },
 
       cascadeRerun: async (id: string) => {
@@ -856,7 +986,7 @@ export const useBoardStore = create<BoardState>()(
         const data = state.boxData[id];
 
         if (!node || !data) return;
-        if (data.status === "running") return;
+        if (data.status === "running" || data.status === "queued") return;
 
         const boxType = (node.data.boxType || node.type) as BoxType;
 
@@ -872,11 +1002,28 @@ export const useBoardStore = create<BoardState>()(
           return;
         }
 
+        // An upstream box is still generating: queue this one and run it
+        // once that input is ready, instead of failing for "no input".
+        if (pendingUpstream(state.edges, state.boxData, id).length > 0) {
+          get().setBoxStatus(id, "queued");
+          const outcome = await waitForUpstream(id);
+          if (outcome.kind === "cancelled") return;
+          if (outcome.kind === "failed") {
+            get().setBoxStatus(
+              id,
+              "error",
+              `"${outcome.title}" failed, so this box could not run. Fix it and try again.`,
+            );
+            return;
+          }
+        }
+
         // Gather upstream inputs
+        const latest = get();
         const { namedInputs } = collectInputs(
-          state.nodes,
-          state.edges,
-          state.boxData,
+          latest.nodes,
+          latest.edges,
+          latest.boxData,
           id,
         );
 
@@ -935,9 +1082,6 @@ export const useBoardStore = create<BoardState>()(
           get().updateBoxData(id, {
             status: "done",
             error: undefined,
-            // A rerun produces new items with new ids, so decisions made on
-            // the previous output no longer refer to anything.
-            approvals: undefined,
             lastRunInputHash: hashInput(namedInputs),
           });
 

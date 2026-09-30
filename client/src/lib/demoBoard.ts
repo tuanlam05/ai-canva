@@ -1,6 +1,7 @@
 import type { Edge, Node } from "@xyflow/react";
 import { BOX_TYPES } from "../types.js";
 import type { BoxData, BoxDocument, BoxType } from "../types.js";
+import { NEUTRAL_AREA } from "./areas.js";
 
 import p1 from "../fixtures/transcripts/participant-p1.txt?raw";
 import p2 from "../fixtures/transcripts/participant-p2.txt?raw";
@@ -12,9 +13,10 @@ import p4 from "../fixtures/transcripts/participant-p4.txt?raw";
  * that reads them. Built in code rather than saved to Firestore so the demo
  * can always be restored.
  *
- * The inputs are deliberately NOT wired to Insight Weaver: connecting them is
- * part of the walkthrough. The four AI boxes are wired to each other, since
- * nobody wants to redraw the pipeline between visitors.
+ * The flow reads left to right in three numbered groups: 1 Research inputs
+ * (P1–P4, not connected: you choose which transcripts feed Theme Finder),
+ * 2 the AI research pipeline, 3 the research summary. The pipeline row is
+ * centred on the input stack so connectors from the inputs fan in evenly.
  *
  * Box ids are fixed strings so that a reset overwrites the same boxData entries.
  */
@@ -43,16 +45,45 @@ const PIPELINE: { id: string; type: BoxType }[] = [
 ];
 
 /**
- * Layout. Spacing is derived from the box sizes in BOX_TYPES plus a gutter,
- * so nothing overlaps on open.
+ * Layout (research-canvas restyle): two group frames side by side whose
+ * header rows line up, so every node header sits on the same y and the
+ * AI → AI connectors run straight. Sizes follow the design reference.
  */
-const GUTTER = 60;
-const INPUT_X = 0;
-const TEXT_STEP_Y = BOX_TYPES.text.defaultHeight + GUTTER;
-const INPUT_Y = [0, TEXT_STEP_Y, TEXT_STEP_Y * 2, TEXT_STEP_Y * 3];
-const PIPELINE_X = BOX_TYPES.text.defaultWidth + GUTTER * 2;
-const PIPELINE_STEP_X = BOX_TYPES.insight.defaultWidth + GUTTER;
-const PIPELINE_Y = TEXT_STEP_Y;
+const GROUP_HEADER = 46;
+/** Room between the groups for the connectors to curve. */
+const GROUP_GAP = 120;
+const INPUT_GROUP_PAD = 16;
+const PIPELINE_GROUP_PAD = 20;
+
+const INPUT_GROUP_X = 0;
+const INPUT_GROUP_Y = 0;
+const INPUT_WIDTH = 288;
+const INPUT_GAP = 12;
+/** Participant nodes are auto-height; these are their collapsed heights. */
+const TEXT_HEIGHT = 170;
+const DOCUMENTS_HEIGHT = 246;
+const INPUT_X = INPUT_GROUP_X + INPUT_GROUP_PAD;
+const INPUT_Y = [0, 1, 2, 3].map(
+  (i) => INPUT_GROUP_Y + GROUP_HEADER + i * (TEXT_HEIGHT + INPUT_GAP),
+);
+
+const PIPELINE_GROUP_X = INPUT_GROUP_X + INPUT_WIDTH + INPUT_GROUP_PAD * 2 + GROUP_GAP;
+/** Pipeline headers line up with the middle of the input stack (between the
+ *  P1 and P4 headers), so the P1–P4 → Theme Finder connectors fan in evenly. */
+const PIPELINE_Y = Math.round((INPUT_Y[0] + INPUT_Y[3]) / 2);
+const PIPELINE_GROUP_Y = PIPELINE_Y - GROUP_HEADER;
+const PIPELINE_X = PIPELINE_GROUP_X + PIPELINE_GROUP_PAD;
+const PIPELINE_STEP_GAP = 72;
+/** Pipeline nodes are auto-height (capped at 860px by .box-node.is-auto);
+ *  the frame is sized for the cap so a fully grown box still fits. */
+const PIPELINE_HEIGHT = 860;
+/** Node widths per step, from the design reference. */
+const PIPELINE_WIDTH: Partial<Record<BoxType, number>> = {
+  insight: 440,
+  journey: 720,
+  safety: 460,
+  coach: 460,
+};
 
 function node(
   id: string,
@@ -60,6 +91,7 @@ function node(
   title: string,
   x: number,
   y: number,
+  size?: { width: number; height?: number },
 ): Node {
   const meta = BOX_TYPES[type];
   return {
@@ -67,7 +99,11 @@ function node(
     type,
     position: { x, y },
     data: { boxType: type, title },
-    style: { width: meta.defaultWidth, height: meta.defaultHeight },
+    style: size
+      ? size.height
+        ? { width: size.width, height: size.height }
+        : { width: size.width }
+      : { width: meta.defaultWidth, height: meta.defaultHeight },
   };
 }
 
@@ -104,40 +140,32 @@ export interface DemoBoard {
   boxData: Record<string, BoxData>;
 }
 
-const AREA_PADDING = 30;
-const AREA_HEADER = 50;
-const AREA_GAP = 80;
+const INPUT_GROUP_WIDTH = INPUT_WIDTH + INPUT_GROUP_PAD * 2;
+const INPUT_GROUP_HEIGHT =
+  INPUT_Y[3] - INPUT_GROUP_Y + DOCUMENTS_HEIGHT + INPUT_GROUP_PAD;
 
-const INPUT_AREA_X = INPUT_X - AREA_PADDING;
-const INPUT_AREA_Y = INPUT_Y[0] - AREA_HEADER;
+const PIPELINE_GROUP_WIDTH =
+  PIPELINE.reduce((w, box) => w + (PIPELINE_WIDTH[box.type] ?? 400), 0) +
+  PIPELINE_STEP_GAP * (PIPELINE.length - 1) +
+  PIPELINE_GROUP_PAD * 2;
+const PIPELINE_GROUP_HEIGHT = GROUP_HEADER + PIPELINE_HEIGHT + PIPELINE_GROUP_PAD;
 
-const INPUT_AREA_WIDTH = BOX_TYPES.text.defaultWidth + AREA_PADDING * 2;
+/** The summary document closes the pipeline in its own frame, header aligned. */
+const SUMMARY_WIDTH = 560;
+const SUMMARY_AREA_WIDTH = SUMMARY_WIDTH + PIPELINE_GROUP_PAD * 2;
+const SUMMARY_AREA_HEIGHT = PIPELINE_GROUP_HEIGHT;
+const SUMMARY_AREA_X = PIPELINE_GROUP_X + PIPELINE_GROUP_WIDTH + GROUP_GAP;
+const SUMMARY_AREA_Y = PIPELINE_GROUP_Y;
 
-const INPUT_AREA_HEIGHT =
-  INPUT_Y[3] -
-  INPUT_Y[0] +
-  BOX_TYPES.text.defaultHeight +
-  AREA_HEADER +
-  AREA_PADDING;
+/**
+ * Bumped whenever the demo layout changes. Every demo node carries it, so a
+ * browser holding an older copy of the demo (guest mode, see App.tsx) is
+ * switched to the current one.
+ */
+export const DEMO_VERSION = 7;
 
-const PIPELINE_AREA_X = INPUT_AREA_X + INPUT_AREA_WIDTH + AREA_GAP;
-
-const PIPELINE_AREA_Y = PIPELINE_Y - AREA_HEADER;
-
-const PIPELINE_AREA_WIDTH =
-  PIPELINE_STEP_X * (PIPELINE.length - 1) +
-  BOX_TYPES.insight.defaultWidth +
-  AREA_PADDING * 2;
-
-const PIPELINE_AREA_HEIGHT =
-  BOX_TYPES.insight.defaultHeight + AREA_HEADER + AREA_PADDING;
-
-const SUMMARY_AREA_WIDTH = 1200;
-const SUMMARY_AREA_HEIGHT = 900;
-
-const SUMMARY_AREA_X = PIPELINE_AREA_X + PIPELINE_AREA_WIDTH + 80;
-
-const SUMMARY_AREA_Y = PIPELINE_AREA_Y;
+/** Neutral group-frame fill/border (design tokens group-fill / group-border). */
+const GROUP_FRAME = { fill: NEUTRAL_AREA.fill, border: NEUTRAL_AREA.border };
 
 /**
  * Builds a fresh copy of the demo board. Returns new objects every call, so
@@ -148,131 +176,93 @@ export function buildDemoBoard(): DemoBoard {
   const nodes: Node[] = [];
   const data: Record<string, BoxData> = {};
 
-  function labelNode(
+  // Outer group frames are fixed visual containers: `fit` makes Canvas size
+  // and place them around their boxes (see fitGroupFrames), and they can't
+  // be selected, dragged or resized — dragging on one pans the canvas. The
+  // caption is drawn by AreaNode in the frame's 46px header row.
+  function groupFrame(
     id: string,
-    text: string,
+    caption: string,
     x: number,
     y: number,
-    color: string,
+    width: number,
+    height: number,
+    fit: { ids: string[]; pad: number },
   ): void {
     nodes.push({
       id,
-      type: "label",
+      type: "area",
       position: { x, y },
-      data: {
-        boxType: "label",
-        title: text,
-      },
-    });
-
-    data[id] = boxData("label", {
-      content: text,
-      labelColor: color,
+      style: { width, height },
+      zIndex: -1,
+      data: { ...GROUP_FRAME, caption, fit: { ...fit, header: GROUP_HEADER } },
     });
   }
 
-  nodes.push({
-    id: "demo-input-area",
-    type: "area",
-    position: {
-      x: INPUT_AREA_X,
-      y: INPUT_AREA_Y,
-    },
-    style: {
-      width: INPUT_AREA_WIDTH,
-      height: INPUT_AREA_HEIGHT,
-    },
-    zIndex: -1,
-    data: {
-      fill: "#f8fafc",
-      border: "#cbd5e1",
-    },
-  });
-
-  nodes.push({
-    id: "demo-pipeline-area",
-    type: "area",
-    position: {
-      x: PIPELINE_AREA_X,
-      y: PIPELINE_AREA_Y,
-    },
-    style: {
-      width: PIPELINE_AREA_WIDTH,
-      height: PIPELINE_AREA_HEIGHT,
-    },
-    zIndex: -1,
-    data: {
-      fill: "#f5f3ff",
-      border: "#a78bfa",
-    },
-  });
-
-  labelNode(
-    "demo-input-label",
-    "Research Inputs",
-    INPUT_AREA_X + 20,
-    INPUT_AREA_Y + 12,
-    "#93c5fd",
+  groupFrame(
+    "demo-input-area",
+    "1 · Research inputs",
+    INPUT_GROUP_X,
+    INPUT_GROUP_Y,
+    INPUT_GROUP_WIDTH,
+    INPUT_GROUP_HEIGHT,
+    { ids: [...TRANSCRIPTS.map((t) => t.id), DOCUMENT_TRANSCRIPT.id], pad: INPUT_GROUP_PAD },
   );
-
-  labelNode(
-    "demo-pipeline-label",
-    "AI Research Pipeline",
-    PIPELINE_AREA_X + 20,
-    PIPELINE_AREA_Y + 12,
-    "#c4b5fd",
+  groupFrame(
+    "demo-pipeline-area",
+    "2 · AI research pipeline",
+    PIPELINE_GROUP_X,
+    PIPELINE_GROUP_Y,
+    PIPELINE_GROUP_WIDTH,
+    PIPELINE_GROUP_HEIGHT,
+    { ids: PIPELINE.map((b) => b.id), pad: PIPELINE_GROUP_PAD },
   );
-
-  nodes.push({
-    id: "demo-summary-area",
-    type: "area",
-    position: {
-      x: SUMMARY_AREA_X,
-      y: SUMMARY_AREA_Y,
-    },
-    style: {
-      width: SUMMARY_AREA_WIDTH,
-      height: SUMMARY_AREA_HEIGHT,
-    },
-    zIndex: -1,
-    data: {
-      fill: "#fffbeb",
-      border: "#f59e0b",
-    },
-  });
-
-  labelNode(
-    "demo-summary-label",
-    "Research Summary",
-    SUMMARY_AREA_X + 20,
-    SUMMARY_AREA_Y + 12,
-    "#f59e0b",
+  groupFrame(
+    "demo-summary-area",
+    "3 · Research summary",
+    SUMMARY_AREA_X,
+    SUMMARY_AREA_Y,
+    SUMMARY_AREA_WIDTH,
+    SUMMARY_AREA_HEIGHT,
+    { ids: ["demo-summary"], pad: PIPELINE_GROUP_PAD },
   );
 
   TRANSCRIPTS.forEach((t, i) => {
-    nodes.push(node(t.id, "text", t.title, INPUT_X, INPUT_Y[i]));
+    nodes.push(
+      node(t.id, "text", t.title, INPUT_X, INPUT_Y[i], { width: INPUT_WIDTH }),
+    );
     data[t.id] = boxData("text", { content: t.text, output: t.text });
   });
 
   const doc = DOCUMENT_TRANSCRIPT;
-  nodes.push(node(doc.id, "documents", doc.title, INPUT_X, INPUT_Y[3]));
+  nodes.push(
+    node(doc.id, "documents", doc.title, INPUT_X, INPUT_Y[3], {
+      width: INPUT_WIDTH,
+    }),
+  );
   data[doc.id] = boxData("documents", {
     documents: [documentEntry(doc.fileName, doc.text)],
   });
 
-  PIPELINE.forEach((box, i) => {
+  let pipelineX = PIPELINE_X;
+  PIPELINE.forEach((box) => {
+    const width = PIPELINE_WIDTH[box.type] ?? BOX_TYPES[box.type].defaultWidth;
     nodes.push(
       node(
         box.id,
         box.type,
         `${BOX_TYPES[box.type].label} Box`,
-        PIPELINE_X + i * PIPELINE_STEP_X,
+        pipelineX,
         PIPELINE_Y,
+        { width },
       ),
     );
     data[box.id] = boxData(box.type);
+    pipelineX += width + PIPELINE_STEP_GAP;
   });
 
+  // The pipeline steps are wired in order. The transcripts are left
+  // unconnected, so you pick which ones feed Theme Finder.
   const edges: Edge[] = PIPELINE.slice(0, -1).map((box, i) => ({
     id: `demo-edge-${box.id}-${PIPELINE[i + 1].id}`,
     source: box.id,
@@ -280,17 +270,21 @@ export function buildDemoBoard(): DemoBoard {
     animated: true,
   }));
 
+  // The summary reads every pipeline box by type, so it stands alone —
+  // no connectors to or from it.
   nodes.push(
     node(
       "demo-summary",
       "summary",
       `${BOX_TYPES.summary.label} Box`,
-      SUMMARY_AREA_X + 40,
-      SUMMARY_AREA_Y + 60,
+      SUMMARY_AREA_X + PIPELINE_GROUP_PAD,
+      PIPELINE_Y,
+      { width: SUMMARY_WIDTH },
     ),
   );
-
   data["demo-summary"] = boxData("summary");
+
+  for (const n of nodes) n.data = { ...n.data, demoVersion: DEMO_VERSION };
 
   return { nodes, edges, boxData: data };
 }

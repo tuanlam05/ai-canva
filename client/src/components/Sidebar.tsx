@@ -2,6 +2,8 @@ import { useBoardStore } from "../store/boardStore.js";
 import { BOX_TYPES } from "../types.js";
 import type { BoxType, BoxCategory } from "../types.js";
 import { useReactFlow } from "@xyflow/react";
+import { BOX_USAGE, STEP_STYLE } from "../lib/nodeView.js";
+import { BoxIcon, ChevronLeftIcon, CloseIcon } from "./ui/icons.js";
 
 interface SidebarProps {
   open: boolean;
@@ -40,33 +42,33 @@ export default function Sidebar({ open, onToggle }: SidebarProps) {
       {!open && (
         <button
           onClick={onToggle}
-          className="sidebar-tab absolute right-0 top-1/2 -translate-y-1/2 z-20 bg-white shadow-lg rounded-l-xl w-8 h-16 flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-50 transition border border-r-0 border-slate-200"
+          className="sidebar-tab absolute right-0 top-1/2 -translate-y-1/2 z-20 bg-surface [box-shadow:var(--shadow-float)] rounded-l-[10px] w-8 h-16 flex items-center justify-center text-ink-icon hover:text-ink hover:bg-surface-sunken transition border border-r-0 border-line"
           title="Show panel"
         >
-          <span className="text-lg">◀</span>
+          <ChevronLeftIcon />
         </button>
       )}
 
       {/* Sidebar panel */}
       <div
         className={
-          "absolute right-0 top-0 bottom-0 z-20 bg-white shadow-xl border-l border-slate-200 " +
+          "absolute right-0 top-0 bottom-0 z-20 bg-surface [box-shadow:var(--shadow-float)] border-l border-line " +
           "transition-transform duration-300 flex flex-col " +
           (open ? "translate-x-0" : "translate-x-full")
         }
         style={{ width: "232px" }}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 flex-shrink-0">
-          <span className="text-[13px] font-semibold text-slate-700">
+        <div className="flex items-center justify-between px-4 h-[46px] border-b border-line-divider flex-shrink-0">
+          <span className="text-[14px] font-semibold text-ink">
             Add Box
           </span>
           <button
             onClick={onToggle}
-            className="text-slate-400 hover:text-slate-600 transition w-6 h-6 flex items-center justify-center rounded hover:bg-slate-100"
+            className="text-ink-icon hover:text-ink transition w-7 h-7 flex items-center justify-center rounded-md hover:bg-surface-sunken"
             title="Hide panel"
           >
-            ✕
+            <CloseIcon />
           </button>
         </div>
 
@@ -77,7 +79,7 @@ export default function Sidebar({ open, onToggle }: SidebarProps) {
             if (boxes.length === 0) return null;
             return (
               <div key={section.title}>
-                <h3 className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5 px-1">
+                <h3 className="mono-label mb-1.5 px-1">
                   {section.title}
                 </h3>
                 <div className="space-y-1">
@@ -85,16 +87,21 @@ export default function Sidebar({ open, onToggle }: SidebarProps) {
                     <button
                       key={type}
                       onClick={() => handleAdd(type)}
-                      className="palette-row w-full flex items-center gap-2.5 pl-2 pr-2.5 py-1.5 rounded-lg border border-slate-200/70 bg-white text-left transition hover:border-slate-300 hover:shadow-sm"
-                      title={meta.description}
+                      className="palette-row w-full flex items-center gap-2.5 pl-2 pr-2.5 py-1.5 rounded-[9px] border border-transparent bg-surface text-left transition-colors hover:bg-surface-sunken"
+                      title={BOX_USAGE[type] ?? meta.description}
                     >
                       <span
-                        className="w-7 h-7 rounded-lg flex items-center justify-center text-sm flex-shrink-0"
-                        style={{ backgroundColor: meta.color + "1F" }}
+                        className="node-tile !w-7 !h-7 !rounded-[8px]"
+                        style={
+                          {
+                            "--tile-color": STEP_STYLE[type]?.color ?? "var(--ink)",
+                          } as React.CSSProperties
+                        }
+                        aria-hidden
                       >
-                        {meta.icon}
+                        <BoxIcon type={type} size={15} />
                       </span>
-                      <span className="flex-1 text-[13px] font-medium text-slate-700 truncate">
+                      <span className="flex-1 text-[13px] font-medium text-ink truncate">
                         {meta.label}
                       </span>
                     </button>
