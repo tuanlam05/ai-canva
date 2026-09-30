@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ReactFlow,
   Background,
@@ -11,8 +11,11 @@ import {
 } from "@xyflow/react";
 import { useBoardStore } from "../store/boardStore.js";
 import { AREA_COLORS } from "../types.js";
-import { isValidAreaSize, normalizeRect } from "../lib/areas.js";
+import { fitGroupFrames, isValidAreaSize, normalizeRect } from "../lib/areas.js";
 import { Button } from "./ui/Button.js";
+import { SquareIcon } from "./ui/icons.js";
+import { STEP_HEX } from "../lib/nodeView.js";
+import { useTheme } from "../lib/theme.js";
 import BoxNode from "./BoxNode.js";
 import AreaNode from "./AreaNode.js";
 import Cursors from "./Cursors.js";
@@ -33,6 +36,10 @@ const nodeTypes = {
 
 const SIDEBAR_WIDTH = 232;
 
+/** Fit the whole board, leaving room for the Add Box panel on the right and
+ *  the zoom / help controls along the bottom. */
+const FIT_PADDING = { top: "56px", left: "48px", right: "272px", bottom: "96px" } as const;
+
 export default function Canvas({ sidebarOpen = false }: { sidebarOpen?: boolean }) {
   const nodes = useBoardStore((s) => s.nodes);
   const edges = useBoardStore((s) => s.edges);
@@ -41,8 +48,67 @@ export default function Canvas({ sidebarOpen = false }: { sidebarOpen?: boolean 
   const onConnect = useBoardStore((s) => s.onConnect);
   const updateCursorPosition = useBoardStore((s) => s.updateCursorPosition);
   const cleanupPresence = useBoardStore((s) => s.cleanupPresence);
+  const boxData = useBoardStore((s) => s.boxData);
+  const colorMode = useTheme((s) => s.resolved);
+  const detachFromArea = useBoardStore((s) => s.detachFromArea);
 
-  const { screenToFlowPosition } = useReactFlow();
+  // Ctrl+drag (⌘+drag on Mac) a box to take it out of its group frame, so
+  // the frame stops stretching after it.
+  const onNodeDragStart = useCallback(
+    (e: MouseEvent | TouchEvent, node: Node) => {
+      if (node.type === "area") return;
+      if (e.ctrlKey || e.metaKey) detachFromArea(node.id);
+    },
+    [detachFromArea]
+  );
+  // Display-only node tweaks:
+  //  - group frames that hug their boxes (demo board);
+  //  - stacking: React Flow's own "raise the selected node" is off
+  //    (elevateNodesOnSelect below) because it lifted a selected area over
+  //    the boxes inside it. Selected boxes are raised here instead, and areas
+  //    always stay underneath (their handles/colour picker sit on or above
+  //    the frame edge, so they remain reachable).
+  const displayNodes = useMemo(
+    () =>
+      fitGroupFrames(nodes).map((n) =>
+        n.type !== "area" && n.selected ? { ...n, zIndex: 1000 } : n,
+      ),
+    [nodes],
+  );
+
+  // Connector styles (presentation only; stored edges just gain a class):
+  //  - "running": the box it feeds is running → data flows along it;
+  //  - "waiting": its source step hasn't produced anything yet → dashed.
+  const styledEdges = useMemo(
+    () =>
+      edges.map((e) => {
+        const src = boxData[e.source];
+        const hasOutput =
+          !!src &&
+          (!!src.output?.trim() ||
+            !!src.content?.trim() ||
+            (src.documents || []).some((d) => !d.error && d.text));
+        const running = boxData[e.target]?.status === "running";
+        const waiting = !running && !!src && !hasOutput;
+        const base = (e.className || "").replace(/\s*edge-(waiting|running)/g, "").trim();
+        const extra = running ? "edge-running" : waiting ? "edge-waiting" : "";
+        const className = [base, extra].filter(Boolean).join(" ") || undefined;
+        return className === e.className ? e : { ...e, className };
+      }),
+    [edges, boxData]
+  );
+
+  const { screenToFlowPosition, fitView } = useReactFlow();
+
+  // Re-fit the view when the board is replaced (demo load / Reset): the
+  // initial fitView runs before the demo boxes exist. Waits a moment so the
+  // new boxes are measured first.
+  const fitRequest = useBoardStore((s) => s.fitRequest);
+  useEffect(() => {
+    if (!fitRequest) return;
+    const t = setTimeout(() => fitView({ padding: FIT_PADDING, duration: 250 }), 120);
+    return () => clearTimeout(t);
+  }, [fitRequest, fitView]);
 
   // Track mouse movement and update presence
   const onMouseMove = useCallback(
@@ -158,6 +224,26 @@ export default function Canvas({ sidebarOpen = false }: { sidebarOpen?: boolean 
     return () => pane.removeEventListener("touchstart", onTouchStart);
   }, [areaTool, screenToFlowPosition]);
 
+  // Undo / redo: Ctrl+Z (⌘Z), Ctrl+Shift+Z (⌘⇧Z) or Ctrl+Y. Inside a text
+  // field the browser's own text undo applies instead.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (!(e.ctrlKey || e.metaKey) || e.altKey) return;
+      const t = e.target as HTMLElement | null;
+      if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
+      const k = e.key.toLowerCase();
+      if (k === "z" && !e.shiftKey) {
+        e.preventDefault();
+        useBoardStore.getState().undo();
+      } else if ((k === "z" && e.shiftKey) || k === "y") {
+        e.preventDefault();
+        useBoardStore.getState().redo();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
   // Escape cancels an in-progress draft and deactivates the tool.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -173,9 +259,19 @@ export default function Canvas({ sidebarOpen = false }: { sidebarOpen?: boolean 
 
   return (
     <ReactFlow
-      nodes={nodes}
-      edges={edges}
+      nodes={displayNodes}
+      edges={styledEdges}
+      elevateNodesOnSelect={false}
+      // A box only starts dragging after the pointer moves 5px, so a normal
+      // click (which usually wobbles a pixel or two) still opens cards and
+      // presses buttons on the first try.
+      nodeDragThreshold={5}
+      onNodeDragStart={onNodeDragStart}
+      // Multi-select is Shift+click (React Flow's default is Ctrl/⌘), so that
+      // Ctrl/⌘ is free for "drag a box out of its frame" above.
+      multiSelectionKeyCode="Shift"
       nodeTypes={nodeTypes}
+      colorMode={colorMode}
       onNodesChange={onNodesChange}
       onEdgesChange={onEdgesChange}
       onConnect={onConnect}
@@ -191,10 +287,13 @@ export default function Canvas({ sidebarOpen = false }: { sidebarOpen?: boolean 
       nodesDraggable={!areaTool}
       className={areaTool ? "area-tool-active" : undefined}
       fitView
-      fitViewOptions={{ padding: 0.3 }}
+      fitViewOptions={{ padding: FIT_PADDING }}
+      // The full demo flow is wider than a screen at React Flow's default
+      // minimum zoom (0.5), which cut off the inputs; allow zooming out
+      // far enough to see the whole board.
+      minZoom={0.2}
       defaultEdgeOptions={{
         animated: true,
-        style: { stroke: "#cbd5e1", strokeWidth: 2 },
       }}
       proOptions={{ hideAttribution: true }}
       // Treat every node as a "no wheel" zone: when the cursor is over a box,
@@ -202,7 +301,24 @@ export default function Canvas({ sidebarOpen = false }: { sidebarOpen?: boolean 
       // box's own scrolling). Zooming still works over empty canvas space.
       noWheelClassName="react-flow__node"
     >
-      <Background variant={BackgroundVariant.Dots} gap={20} size={1.5} />
+      {/* Canvas background: a faint square grid every 5 cells, with a dot at
+        every cell — graph paper, so the board reads as a canvas. */}
+      <Background
+        id="grid-major"
+        variant={BackgroundVariant.Lines}
+        gap={110}
+        lineWidth={1}
+        color="var(--canvas-grid)"
+        bgColor="var(--canvas-bg)"
+      />
+      <Background
+        id="grid-dots"
+        variant={BackgroundVariant.Dots}
+        gap={22}
+        size={2.2}
+        color="var(--canvas-dot)"
+        bgColor="transparent"
+      />
       <Controls position="bottom-center" orientation="horizontal" />
       <Cursors />
       {/* Area drawing tool */}
@@ -212,12 +328,11 @@ export default function Canvas({ sidebarOpen = false }: { sidebarOpen?: boolean 
           variant={areaTool ? "primary" : "secondary"}
           onClick={() => { setAreaTool((t) => !t); setDraft(null); }}
           title="Draw a rectangular area under the boxes"
-          className="shadow-md"
         >
-          ▭ {areaTool ? "Drawing areas — Esc to stop" : "Area"}
+          <SquareIcon /> {areaTool ? "Drawing areas — Esc to stop" : "Area"}
         </Button>
         {areaTool && (
-          <div className="flex items-center gap-1.5 rounded-lg bg-white/90 backdrop-blur px-2 py-1.5 shadow-md border border-slate-200">
+          <div className="flex items-center gap-1.5 rounded-[10px] bg-surface px-2 py-1.5 border border-line [box-shadow:var(--shadow-float)]">
             {AREA_COLORS.map((c, i) => (
               <button
                 key={c.fill}
@@ -244,21 +359,16 @@ export default function Canvas({ sidebarOpen = false }: { sidebarOpen?: boolean 
         }}
         nodeColor={(node: Node) => {
           const colors: Record<string, string> = {
-            text: "#fbbf24",
-            insight: "#60a5fa",
-            journey: "#a78bfa",
-            safety: "#ef4444",
-            coach: "#84cc16",
-            documents: "#64748b",
+            ...(STEP_HEX as Record<string, string>),
             note: "#fbbf24",
-            label: "#64748b",
-            checklist: "#059669",
+            label: "#8A8F98",
+            checklist: "#8A8F98",
           };
           if (node.type === "area") {
             // Areas are near-white on the minimap — use their border shade.
             return (node.data as any)?.border || "#cbd5e1";
           }
-          return colors[node.type || ""] || "#94a3b8";
+          return colors[node.type || ""] || "#A3A8B1";
         }}
       />
     </ReactFlow>

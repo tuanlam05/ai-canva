@@ -1,35 +1,33 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import type { Theme } from "../../types";
 import { useBoardStore } from "../../store/boardStore";
-import { motion, AnimatePresence } from "framer-motion";
+import { sourceCode } from "../../lib/nodeView";
+import { AlertIcon, CaretIcon, RerunIcon, Spinner } from "../ui/icons";
 
 interface InsightWeaverOutputProps {
   content: string;
   boxId: string;
-  showHistory: boolean;
-  onRevertComplete?: () => void;
+  /** An earlier version (see VersionHistory): shown without per-theme Rerun. */
+  readOnly?: boolean;
 }
 
+/**
+ * Theme Finder (Insight Weaver) themes as cards, ranked by how many
+ * supporting quotes they have (shown as a count). One card open at a time;
+ * all start closed. Each card has its own Rerun, except on earlier versions.
+ */
 export default function InsightWeaverOutput({
   content,
   boxId,
-  showHistory,
-  onRevertComplete,
+  readOnly = false,
 }: InsightWeaverOutputProps) {
-  const [expanded, setExpanded] = useState<Set<number>>(new Set());
+  // Accordion: index into the ORIGINAL themes array (null = all closed).
+  const [openTheme, setOpenTheme] = useState<number | null>(null);
   const [regeneratingIndex, setRegeneratingIndex] = useState<number | null>(
     null,
   );
-  const [viewingVersion, setViewingVersion] = useState<string | null>(null);
-  const [showConfirmRevert, setShowConfirmRevert] = useState(false);
 
   const rerunTheme = useBoardStore((s) => s.rerunTheme);
-  const revertToVersion = useBoardStore((s) => s.revertToVersion);
-  const boxData = useBoardStore((s) => s.boxData[boxId]);
-
-  useEffect(() => {
-    if (!showHistory) setViewingVersion(null);
-  }, [showHistory]);
 
   async function handleReject(themeIndex: number) {
     setRegeneratingIndex(themeIndex);
@@ -37,279 +35,137 @@ export default function InsightWeaverOutput({
     setRegeneratingIndex(null);
   }
 
-  const viewingEntry =
-    viewingVersion !== null
-      ? boxData.history?.find((entry) => entry.id === viewingVersion)
-      : null;
-
-  const displayContent = viewingEntry?.output ?? content;
-
   let themes: Theme[] = [];
   let parseError = false;
 
   try {
-    const parsed = JSON.parse(displayContent);
+    const parsed = JSON.parse(content);
     themes = Array.isArray(parsed.themes) ? parsed.themes : [];
   } catch {
     parseError = true;
   }
 
-  const toggle = (i: number) => {
-    setExpanded((prev) => {
-      const next = new Set(prev);
-      if (next.has(i)) next.delete(i);
-      else next.add(i);
-      return next;
-    });
-  };
+  // Rank by supporting quotes, highest first. Keep each theme's original
+  // index: the store's rerunTheme addresses themes by their position in the
+  // output.
+  const ranked = themes
+    .map((theme, index) => ({ theme, index, count: theme.evidence?.length ?? 0 }))
+    .sort((a, b) => b.count - a.count || a.index - b.index);
 
-  const renderThemeCards = (readOnly: boolean) => (
-    <>
+  return (
+    <div className="nowheel px-2 pt-1 pb-2.5">
       {parseError ? (
-        <div className="text-amber-600 text-sm p-2 bg-amber-50 rounded-lg">
-          ⚠️ Could not parse structured output. Showing raw text below.
-          <pre className="mt-2 whitespace-pre-wrap text-xs text-slate-500">
-            {displayContent}
+        <div className="m-2 p-3 rounded-lg bg-[color:var(--amber-bg)] text-[color:var(--amber-text)] text-[13px]">
+          <span className="flex items-center gap-1.5 font-semibold">
+            <AlertIcon /> Could not parse structured output. Showing raw text below.
+          </span>
+          <pre className="mt-2 whitespace-pre-wrap font-mono text-[11.5px] text-ink-3">
+            {content}
           </pre>
         </div>
       ) : themes.length === 0 ? (
-        <div className="text-slate-400 text-base py-4 text-center">
+        <div className="text-ink-muted text-[13px] py-8 text-center">
           No themes found in the research material.
         </div>
       ) : (
-        <div className="space-y-3">
-          <p className="text-[#8B93A5] font-inter text-base ms-1">
-            {themes.length} theme{themes.length > 1 && "s"}
-          </p>
-          {themes.map((theme, i) => {
-            const isOpen = expanded.has(i);
+        <div className="flex flex-col gap-1.5">
+          <div className="flex justify-between pt-2 pb-0.5 pl-[35px] pr-3 mono-label">
+            <span>Theme</span>
+            <span>Quotes</span>
+          </div>
+          {ranked.map(({ theme, index: i, count }) => {
+            const isOpen = openTheme === i;
+            const isRegenerating = regeneratingIndex === i;
             return (
-              <div
-                key={i}
-                className="border border-slate-200 rounded-lg overflow-hidden bg-white"
-              >
-                <button
-                  onClick={() => toggle(i)}
-                  className="w-full flex items-center justify-between px-3 py-2.5 text-left hover:bg-slate-50 transition"
+              <div key={i} className={"acc-row" + (isOpen ? " is-open" : "")}>
+                <div
+                  role="button"
+                  tabIndex={0}
+                  aria-expanded={isOpen}
+                  onClick={() => setOpenTheme(isOpen ? null : i)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      setOpenTheme(isOpen ? null : i);
+                    }
+                  }}
+                  className="acc-head nodrag"
                 >
-                  <div className="flex items-center gap-2 min-w-0">
-                    <span
-                      className="text-slate-500 text-sm flex-shrink-0 w-4 text-center transition-transform"
-                      style={{ transform: isOpen ? "rotate(90deg)" : "none" }}
-                      aria-hidden
-                    >
-                      ▶
-                    </span>
-                    <AnimatePresence mode="wait">
-                      <motion.span
-                        key={regeneratingIndex === i ? "loading" : "theme"}
-                        initial={{ opacity: 0, y: -4 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: 4 }}
-                        transition={{ duration: 0.15 }}
-                        className="font-semibold text-base text-slate-800 truncate inline-block"
-                      >
-                        {regeneratingIndex === i
-                          ? "⏳ Regenerating..."
-                          : theme.theme}
-                      </motion.span>
-                    </AnimatePresence>
-                  </div>
-                  <div className="flex items-center gap-1 flex-shrink-0 ml-2">
-                    {!readOnly && (
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleReject(i);
-                        }}
-                        disabled={regeneratingIndex !== null}
-                        className={`text-white rounded-md text-sm px-3 py-1.5 transition ${
-                          regeneratingIndex === i
-                            ? "bg-blue-100"
-                            : "bg-[#60a5fa] hover:bg-blue-300"
-                        }`}
-                        title="Reject & regenerate"
-                      >
-                        Rerun
-                      </button>
+                  <CaretIcon className={"caret" + (isOpen ? " is-open" : "")} />
+                  <span className="flex-1 min-w-0 text-[13.5px] leading-[1.35] font-medium text-ink [text-wrap:pretty]">
+                    {isRegenerating ? (
+                      <span className="inline-flex items-center gap-1.5 text-ink-muted">
+                        <Spinner /> Regenerating…
+                      </span>
+                    ) : (
+                      theme.theme
                     )}
-                    <span className="text-sm text-blue-700 font-bold flex-shrink-0 ml-2 bg-slate-100 px-1.5 py-0.5 rounded-full">
-                      {theme.evidence?.length ?? 0}
-                    </span>
-                  </div>
-                </button>
-
-                <AnimatePresence>
-                  {isOpen && (
-                    <motion.div
-                      initial={{ height: 0, opacity: 0 }}
-                      animate={{ height: "auto", opacity: 1 }}
-                      exit={{ height: 0, opacity: 0 }}
-                      transition={{ duration: 0.2 }}
-                      className="overflow-hidden"
+                  </span>
+                  {!readOnly && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleReject(i);
+                      }}
+                      disabled={regeneratingIndex !== null}
+                      className="btn btn-secondary btn-sm !h-[26px] !px-2 flex-none"
+                      title="Reject & regenerate this theme"
                     >
-                      <div className="px-3 pb-3 pt-1 border-t border-slate-100 space-y-2">
-                        <p className="text-sm leading-6 text-slate-600">
-                          {theme.description}
-                        </p>
-                        {theme.evidence?.map((ev, j) => (
-                          <div
-                            key={j}
-                            className="text-sm leading-6 text-slate-700 bg-slate-50 rounded-tr-lg rounded-br-lg p-3 border-l-4 border-blue-300"
-                          >
-                            <p className="italic">&ldquo;{ev.quote}&rdquo;</p>
-                            <p className="text-slate-500 mt-2">
-                              — {ev.source}
-                              <span
-                                title={
-                                  ev.verified
-                                    ? "This quote appears word for word in the source transcript."
-                                    : "This quote does not match the transcript exactly — the wording may have been altered. Check it against the source before using it."
-                                }
-                                className={
-                                  "text-sm px-2 py-0.5 rounded-md border ml-2 cursor-help " +
-                                  (ev.verified
-                                    ? "border-green-300 text-green-700"
-                                    : "border-yellow-300 text-yellow-600")
-                                }
-                              >
-                                {ev.verified ? "Verified" : "Unverified"}
-                              </span>
-                            </p>
-                          </div>
-                        ))}
-                      </div>
-                    </motion.div>
+                      <RerunIcon size={12} /> Rerun
+                    </button>
                   )}
-                </AnimatePresence>
+                  <span
+                    className="min-w-[26px] h-[22px] px-1.5 flex-none grid place-items-center rounded-[6px] bg-surface-muted font-mono text-[12px] font-semibold text-ink"
+                    title={`${count} supporting ${count === 1 ? "quote" : "quotes"}`}
+                  >
+                    {count}
+                  </span>
+                </div>
+
+                {isOpen && (
+                  <div className="pl-[35px] pr-3 pt-0.5 pb-3 flex flex-col gap-1.5 anim-fade-up">
+                    {theme.description && (
+                      <p className="m-0 mb-0.5 text-[13px] leading-[1.5] text-ink-2 [text-wrap:pretty]">
+                        {theme.description}
+                      </p>
+                    )}
+                    {theme.evidence?.map((ev, j) => (
+                      <div
+                        key={j}
+                        className="flex gap-2.5 items-start bg-surface-sunken rounded-lg px-[11px] py-[9px] text-[12.5px] leading-[1.5] text-[color:var(--quote-text)]"
+                      >
+                        <span
+                          className="flex-none mt-px font-mono text-[10.5px] font-semibold px-[5px] py-px rounded bg-ink text-on-ink"
+                          title={ev.source}
+                        >
+                          {sourceCode(ev.source)}
+                        </span>
+                        <span className="flex-1 min-w-0">
+                          &ldquo;{ev.quote}&rdquo;
+                          <span
+                            title={
+                              ev.verified
+                                ? "This quote appears word for word in the source transcript."
+                                : "This quote does not match the transcript exactly — the wording may have been altered. Check it against the source before using it."
+                            }
+                            className={
+                              "ml-1.5 align-middle inline-flex items-center h-[18px] px-1.5 rounded font-mono text-[10.5px] font-semibold uppercase tracking-[.04em] cursor-help " +
+                              (ev.verified
+                                ? "bg-surface-muted text-ink-muted"
+                                : "bg-[color:var(--amber-bg)] text-[color:var(--amber-text)]")
+                            }
+                          >
+                            {ev.verified ? "Verified" : "Unverified"}
+                          </span>
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             );
           })}
-        </div>
-      )}
-    </>
-  );
-
-  return (
-    <div className="space-y-2 nowheel">
-      <AnimatePresence mode="wait">
-        {viewingVersion !== null ? (
-          <motion.div
-            key="viewing-version"
-            initial={{ opacity: 0, x: 10 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -10 }}
-            transition={{ duration: 0.15 }}
-          >
-            <div className="flex items-center justify-between px-2 py-1.5 mb-2 bg-slate-50 border border-slate-200 rounded-lg text-xs">
-              <button
-                onClick={() => setViewingVersion(null)}
-                className="flex items-center gap-1 text-slate-600 hover:text-slate-900 font-medium"
-                title="Back to history list"
-              >
-                ←{" "}
-                {viewingEntry &&
-                  new Date(viewingEntry.timestamp).toLocaleString()}
-              </button>
-              <button
-                onClick={() => setShowConfirmRevert(true)}
-                className="text-amber-700 font-medium hover:text-amber-900 px-2 py-0.5 rounded hover:bg-amber-100 transition"
-              >
-                Revert
-              </button>
-            </div>
-            {renderThemeCards(true)}
-          </motion.div>
-        ) : showHistory ? (
-          <motion.div
-            key="history-list"
-            initial={{ opacity: 0, x: 10 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -10 }}
-            transition={{ duration: 0.15 }}
-          >
-            {!boxData.history?.length ? (
-              <div className="text-slate-400 text-base py-6 text-center">
-                No history yet.
-              </div>
-            ) : (
-              <div className="space-y-1.5">
-                {boxData.history.map((entry) => {
-                  const isCurrent = entry.id === boxData.currentVersionId;
-
-                  return (
-                    <button
-                      key={entry.id}
-                      onClick={() => setViewingVersion(entry.id)}
-                      disabled={isCurrent}
-                      className={`w-full text-left px-3 py-2.5 rounded-lg border text-sm transition ${
-                        isCurrent
-                          ? "border-blue-200 bg-blue-50 text-blue-700 cursor-default"
-                          : "border-slate-200 text-slate-600 hover:bg-slate-50"
-                      }`}
-                    >
-                      <div className="flex items-center justify-between gap-2">
-                        <span>
-                          {new Date(entry.timestamp).toLocaleString()}
-                        </span>
-
-                        {isCurrent && (
-                          <span className="text-[10px] font-semibold uppercase tracking-wide">
-                            current
-                          </span>
-                        )}
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-          </motion.div>
-        ) : (
-          <motion.div
-            key="main-content"
-            initial={{ opacity: 0, x: -10 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: 10 }}
-            transition={{ duration: 0.15 }}
-          >
-            {renderThemeCards(false)}
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {showConfirmRevert && (
-        <div
-          className="fixed inset-0 bg-black/20 flex items-center justify-center z-50"
-          onClick={() => setShowConfirmRevert(false)}
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            className="bg-white rounded-xl p-4 shadow-lg max-w-xs"
-          >
-            <p className="text-sm text-slate-700 mb-3">
-              Revert to this version?
-            </p>
-            <div className="flex gap-2 justify-end">
-              <button
-                onClick={() => setShowConfirmRevert(false)}
-                className="text-xs px-3 py-1.5 rounded-lg text-slate-500 hover:bg-slate-100"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => {
-                  revertToVersion(boxId, viewingVersion!);
-                  setShowConfirmRevert(false);
-                  setViewingVersion(null);
-                  onRevertComplete?.();
-                }}
-                className="text-xs px-3 py-1.5 rounded-lg bg-red-500 text-white hover:bg-red-600"
-              >
-                Revert
-              </button>
-            </div>
-          </div>
         </div>
       )}
     </div>

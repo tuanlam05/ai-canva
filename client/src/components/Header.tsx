@@ -1,10 +1,23 @@
-import { memo, useState } from "react";
+import { memo, useState, type ReactNode } from "react";
 import type { User } from "firebase/auth";
 import { useBoardStore } from "../store/boardStore.js";
 import { useTokenStore } from "../store/tokenStore.js";
 import { Button } from "./ui/Button.js";
 import { Menu, MenuDivider, MenuItem } from "./ui/Menu.js";
 import PresenceRoster from "./PresenceRoster.js";
+import { useTheme, type ThemeChoice } from "../lib/theme.js";
+import {
+  BoltIcon,
+  ChevronDownIcon,
+  LogoutIcon,
+  MonitorIcon,
+  MoonIcon,
+  SunIcon,
+  PlusIcon,
+  RerunIcon,
+  TrashIcon,
+  UsersIcon,
+} from "./ui/icons.js";
 
 /**
  * Top app bar — the app's primary chrome.
@@ -29,7 +42,8 @@ const SAVE_LABEL: Record<string, string> = {
 };
 
 interface HeaderProps {
-  user: User;
+  /** null = signed-out local guest (sign-in disabled, see lib/authMode.ts). */
+  user: User | null;
   sidebarOpen: boolean;
   onToggleSidebar: () => void;
   onShare: () => void;
@@ -80,68 +94,87 @@ function Header({
   const totalTokens = useTokenStore((s) => s.totalTokens);
   const fmtTokens = (n: number) => n.toLocaleString("en-US");
 
-  const saveLabel = SAVE_LABEL[saveStatus];
-  const avatarInitials = (user.displayName || user.email || "?").slice(0, 2).toUpperCase();
+  const themeChoice = useTheme((s) => s.choice);
+  const themeResolved = useTheme((s) => s.resolved);
+  const setThemeChoice = useTheme((s) => s.setChoice);
+  const THEME_OPTIONS: { value: ThemeChoice; label: string; icon: ReactNode }[] = [
+    { value: "light", label: "Light", icon: <SunIcon /> },
+    { value: "dark", label: "Dark", icon: <MoonIcon /> },
+    { value: "system", label: "System", icon: <MonitorIcon /> },
+  ];
 
+  const saveLabel = SAVE_LABEL[saveStatus];
+  const avatarInitials = (user?.displayName || user?.email || "?").slice(0, 2).toUpperCase();
+  const isGuest = !user;
+
+  // z-30 on the header: above the Add Box panel (z-20) so its menus open over it.
   return (
-    <header className="app-bar flex items-center justify-between gap-3 px-4 h-14 relative z-20">
+    <header className="app-bar flex items-center justify-between gap-3 px-4 h-14 relative z-30">
       {/* ---- Left: brand + board identity ---- */}
       <div className="flex items-center gap-3 min-w-0">
         <div className="flex items-center gap-2.5 flex-shrink-0">
           <div className="logo-tile" aria-hidden>
-            🎨
+            RC
           </div>
-          <span className="text-[15px] font-semibold tracking-tight text-slate-900 hidden sm:block">
-            AI Canva
+          <span className="text-[14px] font-semibold text-ink hidden sm:block">
+            Research Canvas
           </span>
         </div>
 
-        <div className="h-6 w-px bg-slate-200 flex-shrink-0" />
+        <div className="h-6 w-px bg-line flex-shrink-0" />
 
-        {currentBoardId ? (
+        {currentBoardId || !user ? (
           <div className="flex items-center gap-2.5 min-w-0">
             <input
               type="text"
               value={boardTitle}
               onChange={(e) => setBoardTitle(e.target.value)}
               placeholder="Untitled board"
-              className="h-8 w-48 md:w-56 rounded-lg border border-transparent bg-slate-100/70 px-2.5 text-[13px] font-medium text-slate-700 transition hover:border-slate-200 hover:bg-slate-100 focus:border-indigo-300 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+              className="h-[34px] w-48 md:w-56 rounded-lg border border-transparent bg-transparent px-2.5 text-[14px] font-semibold text-ink transition hover:bg-surface-sunken focus:border-line-control focus:bg-surface focus:outline-none focus:ring-2 focus:ring-[rgba(22,24,29,.12)]"
             />
-            {saveLabel && (
+            {!user && (
+              <span
+                className="font-mono text-[11px] text-ink-muted hidden md:block"
+                title="Sign-in is off: this board is saved in this browser only"
+              >
+                Saved in this browser
+              </span>
+            )}
+            {saveLabel && user && (
               <span
                 className="flex items-center gap-1.5 flex-shrink-0"
                 title={"Board save status: " + saveLabel}
               >
                 <span className={"save-dot save-" + saveStatus} />
-                <span className="text-[11px] text-slate-400 hidden md:block">{saveLabel}</span>
+                <span className="font-mono text-[11px] text-ink-muted hidden md:block">{saveLabel}</span>
               </span>
             )}
           </div>
         ) : (
-          <span className="text-xs text-slate-400">Opening board…</span>
+          <span className="font-mono text-[11.5px] text-ink-muted">Opening board…</span>
         )}
       </div>
 
       {/* ---- Right: actions ---- */}
       <div className="flex items-center gap-1.5 flex-shrink-0">
-        {/* Collaboration group */}
-        {currentBoardId && (
+        {/* Collaboration group (cloud boards only) */}
+        {currentBoardId && user && (
           <>
             <PresenceRoster />
             <Button variant="primary" onClick={onShare} className="ml-1">
-              👥 Share
+              <UsersIcon /> Share
             </Button>
-            <div className="h-6 w-px bg-slate-200 mx-1.5" />
+            <div className="h-6 w-px bg-line mx-1.5" />
           </>
         )}
 
         {/* Showcase reset: puts the board back to its starting state between
           visitors, restoring deleted boxes and clearing every decision. */}
-        {currentBoardId && isDemoBoard && (
+        {(currentBoardId || isGuest) && isDemoBoard && (
           <>
             {confirmingReset ? (
               <div className="flex items-center gap-1.5">
-                <span className="text-[11px] text-slate-500 hidden md:block">
+                <span className="text-[12px] text-ink-muted hidden md:block">
                   Reset the demo board?
                 </span>
                 <Button
@@ -160,18 +193,21 @@ function Header({
                 onClick={() => setConfirmingReset(true)}
                 title="Restore the demo board to its starting state"
               >
-                ↺ Reset
+                <RerunIcon /> Reset
               </Button>
             )}
-            <div className="h-6 w-px bg-slate-200 mx-1.5" />
+            <div className="h-6 w-px bg-line mx-1.5" />
           </>
         )}
 
         {/* Board tools */}
         <Button onClick={onToggleSidebar} active={sidebarOpen} title="Toggle the add-box panel">
-          {"+ Add Box"}
+          <PlusIcon /> Add Box
         </Button>
 
+        {/* Cloud boards + usage need an account — hidden for local guests. */}
+        {user && (
+        <>
         <Menu
           panelClassName="w-72"
           trigger={({ open, toggle }) => (
@@ -184,9 +220,7 @@ function Header({
               title="Open, create, or manage boards"
             >
               Boards ({boardList.length})
-              <span className={"text-[10px] transition-transform " + (open ? "rotate-180" : "")}>
-                ▾
-              </span>
+              <ChevronDownIcon className={"transition-transform " + (open ? "rotate-180" : "")} />
             </Button>
           )}
         >
@@ -194,7 +228,7 @@ function Header({
             <>
               <div className="max-h-80 overflow-y-auto">
                 <MenuItem
-                  icon="＋"
+                  icon={<PlusIcon />}
                   label="New Board"
                   accent
                   onClick={() => {
@@ -203,7 +237,7 @@ function Header({
                   }}
                 />
                 {boardList.length === 0 && (
-                  <div className="px-3.5 py-3 text-xs text-slate-400">No boards yet.</div>
+                  <div className="px-3.5 py-3 text-[12px] text-ink-muted">No boards yet.</div>
                 )}
                 {boardList.map((b) => (
                   <MenuItem
@@ -227,7 +261,6 @@ function Header({
                 <>
                   <MenuDivider />
                   <MenuItem
-                    icon="🧹"
                     label="Clear this board"
                     description="Remove all boxes"
                     danger
@@ -237,7 +270,7 @@ function Header({
                     }}
                   />
                   <MenuItem
-                    icon="🗑"
+                    icon={<TrashIcon />}
                     label="Delete this board"
                     description="Remove it from the cloud"
                     danger
@@ -252,16 +285,18 @@ function Header({
           )}
         </Menu>
 
-        <div className="h-6 w-px bg-slate-200 mx-1.5" />
+        <div className="h-6 w-px bg-line mx-1.5" />
 
         {/* Usage + role views + account */}
         <div
-          className="flex items-center gap-1 h-8 px-2.5 rounded-lg bg-slate-100/80 text-[11px] text-slate-500 tabular-nums"
+          className="flex items-center gap-1.5 h-[34px] px-2.5 rounded-lg bg-surface-muted font-mono text-[11.5px] text-ink-muted tabular-nums"
           title={"Your total LLM tokens used: " + fmtTokens(totalTokens)}
         >
-          ⚡ <span className="font-semibold text-slate-600">{fmtTokens(totalTokens)}</span>
+          <BoltIcon /> <span className="font-semibold text-ink-3">{fmtTokens(totalTokens)}</span>
           <span className="hidden md:inline">tok</span>
         </div>
+        </>
+        )}
 
         {isAdmin && (
           <Button
@@ -270,7 +305,7 @@ function Header({
             onClick={onToggleAdminView}
             title="Admin board — system stats and users"
           >
-            🛠️ Admin
+            Admin
           </Button>
         )}
         {(isAdmin || isFacilitator) && (
@@ -280,10 +315,45 @@ function Header({
             onClick={onToggleFacilitatorView}
             title="Facilitator dashboard — templates, workshops, teams"
           >
-            🧑‍🏫 Facilitator
+            Facilitator
           </Button>
         )}
 
+        {/* Colour theme: Light / Dark / follow the OS */}
+        <Menu
+          panelClassName="w-40"
+          trigger={({ open, toggle }) => (
+            <Button
+              variant="ghost"
+              onClick={toggle}
+              active={open}
+              className="!w-[34px] !px-0"
+              title={"Theme: " + themeChoice}
+              aria-label="Colour theme"
+            >
+              {themeResolved === "dark" ? <MoonIcon /> : <SunIcon />}
+            </Button>
+          )}
+        >
+          {(close) => (
+            <div className="py-1">
+              {THEME_OPTIONS.map((o) => (
+                <MenuItem
+                  key={o.value}
+                  icon={o.icon}
+                  label={o.label}
+                  active={themeChoice === o.value}
+                  onClick={() => {
+                    setThemeChoice(o.value);
+                    close();
+                  }}
+                />
+              ))}
+            </div>
+          )}
+        </Menu>
+
+        {user && (
         <Menu
           panelClassName="w-60"
           trigger={({ open, toggle }) => (
@@ -291,35 +361,35 @@ function Header({
               type="button"
               onClick={toggle}
               className={
-                "flex items-center gap-1 h-8 pl-1 pr-2 rounded-full border shadow-sm transition " +
+                "flex items-center gap-1 h-[34px] pl-1 pr-2 rounded-full border transition-colors " +
                 (open
-                  ? "bg-slate-50 border-slate-300"
-                  : "bg-white border-slate-200 hover:border-slate-300")
+                  ? "bg-surface-sunken border-line-control"
+                  : "bg-surface border-line-control hover:bg-surface-hover")
               }
               title="Account"
             >
               {user.photoURL ? (
                 <img src={user.photoURL} alt="" className="w-6 h-6 rounded-full" />
               ) : (
-                <span className="w-6 h-6 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-bold flex items-center justify-center">
+                <span className="w-[26px] h-[26px] rounded-full bg-ink text-on-ink font-mono text-[10.5px] font-semibold flex items-center justify-center">
                   {avatarInitials}
                 </span>
               )}
-              <span className="text-[10px] text-slate-400">▾</span>
+              <ChevronDownIcon className="text-ink-icon" />
             </button>
           )}
         >
           {(close) => (
             <>
-              <div className="px-3.5 py-2.5 border-b border-slate-100">
-                <p className="text-[13px] font-medium text-slate-800 truncate">
+              <div className="px-3.5 py-2.5 border-b border-line-divider">
+                <p className="text-[13px] font-semibold text-ink truncate">
                   {user.displayName || "Signed in"}
                 </p>
-                <p className="text-[11px] text-slate-400 truncate">{user.email || "Workshop guest"}</p>
+                <p className="font-mono text-[11px] text-ink-muted truncate">{user.email || "Workshop guest"}</p>
               </div>
               <div className="py-1">
                 <MenuItem
-                  icon="⏻"
+                  icon={<LogoutIcon />}
                   label="Sign out"
                   danger
                   onClick={() => {
@@ -331,6 +401,7 @@ function Header({
             </>
           )}
         </Menu>
+        )}
       </div>
     </header>
   );

@@ -23,6 +23,23 @@ findPort(PREFERRED_PORT).then((actualPort) => {
   // and proxy /api requests to the correct server address.
   fs.writeFileSync(PORT_FILE, String(actualPort));
 
+  // Remove it again on shutdown. A stale file from a previous run would send
+  // the next Vite start to a dead port (Vite reads it before this server has
+  // rewritten it); with no file, Vite waits for the new one instead.
+  const removePortFile = () => {
+    try {
+      if (fs.readFileSync(PORT_FILE, "utf-8").trim() === String(actualPort)) {
+        fs.unlinkSync(PORT_FILE);
+      }
+    } catch {
+      // Already gone — nothing to clean up.
+    }
+  };
+  process.on("exit", removePortFile);
+  for (const signal of ["SIGINT", "SIGTERM", "SIGHUP"] as const) {
+    process.on(signal, () => process.exit(0));
+  }
+
   app.listen(actualPort, () => {
     if (actualPort !== PREFERRED_PORT) {
       console.warn(
